@@ -267,3 +267,112 @@ sudo chmod 777 /var/www/html/referral_system/uploads
 - Обновлять пароли
 
 Удачи в использовании! 🚀 
+
+## ✅ Основные проблемы решены - тестируем сайт
+
+### 1. Исправим тестовый файл для корректного отображения таблиц:
+```bash
+sudo tee /var/www/html/referral_system/test_tables.php > /dev/null <<'EOF'
+<?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+require_once 'includes/database.php';
+
+echo "<h1>Database Tables Test</h1>";
+
+try {
+    // Проверяем таблицы правильным способом
+    $stmt = $pdo->query("SHOW TABLES");
+    $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    echo "<h3>Tables in database:</h3><ul>";
+    foreach($tables as $table) {
+        echo "<li>" . htmlspecialchars($table) . "</li>";
+    }
+    echo "</ul>";
+    
+    // Проверяем содержимое таблицы users
+    $stmt = $pdo->query("SELECT id, full_name, phone_number, created_at FROM users LIMIT 3");
+    $users = $stmt->fetchAll();
+    
+    echo "<h3>Sample users:</h3>";
+    if ($users) {
+        echo "<table border='1' style='border-collapse: collapse;'>";
+        echo "<tr><th>ID</th><th>Name</th><th>Phone</th><th>Created</th></tr>";
+        foreach($users as $user) {
+            echo "<tr>";
+            echo "<td>" . htmlspecialchars($user['id']) . "</td>";
+            echo "<td>" . htmlspecialchars($user['full_name']) . "</td>";
+            echo "<td>" . htmlspecialchars($user['phone_number']) . "</td>";
+            echo "<td>" . htmlspecialchars($user['created_at']) . "</td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+    }
+    
+} catch(Exception $e) {
+    echo "<p style='color: red;'>Error: " . $e->getMessage() . "</p>";
+}
+?>
+EOF
+
+sudo chown www-data:www-data /var/www/html/referral_system/test_tables.php
+```
+
+### 2. Теперь проверим работает ли основной сайт:
+
+**Откройте эти страницы в браузере:**
+
+1. **https://beznegativaplus.ru/** - главная страница
+2. **https://beznegativaplus.ru/user_form.php** - форма добавления пользователя  
+3. **https://beznegativaplus.ru/user.php** - список пользователей
+4. **https://beznegativaplus.ru/settings.php** - настройки
+
+### 3. Проверим работают ли CSS и JS файлы:
+```bash
+# Проверяем доступность статических файлов
+curl -I https://beznegativaplus.ru/css/style.css
+curl -I https://beznegativaplus.ru/js/theme.js
+curl -I https://beznegativaplus.ru/js/search.js
+```
+
+### 4. Если CSS/JS файлы не загружаются, создадим их:
+```bash
+# Проверяем структуру директорий
+ls -la /var/www/html/referral_system/
+
+# Создаем недостающие директории и файлы
+sudo mkdir -p /var/www/html/referral_system/css
+sudo mkdir -p /var/www/html/referral_system/js
+
+# Копируем базовые стили и скрипты из предыдущих команд
+sudo cp /var/www/html/referral_system/css/style.css /var/www/html/referral_system/css/style.css.backup 2>/dev/null || true
+sudo cp /var/www/html/referral_system/js/theme.js /var/www/html/referral_system/js/theme.js.backup 2>/dev/null || true
+```
+
+### 5. Проверим работу формы добавления пользователя:
+```bash
+<code_block_to_apply_changes_from>
+```
+
+## 🎯 Тестирование после исправлений:
+
+### Проверьте эти страницы:
+
+1. **https://beznegativaplus.ru/test_tables.php** - проверка таблиц БД
+2. **https://beznegativaplus.ru/test_form_working.php** - работающая форма
+3. **https://beznegativaplus.ru/** - главная страница
+4. **https://beznegativaplus.ru/user_form.php** - оригинальная форма
+
+### В браузере (F12 -> Console) проверьте:
+- Есть ли ошибки JavaScript
+- Загружаются ли CSS файлы (вкладка Network)
+
+### Если главная страница работает, но нет стилей:
+```bash
+# Проверяем загружается ли CSS
+curl -v https://beznegativaplus.ru/css/style.css
+```
+
+Теперь большинство проблем должно быть решено! База данных работает отлично. Сообщите результаты тестирования страниц! 🚀 

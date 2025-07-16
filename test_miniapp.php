@@ -184,20 +184,30 @@
             <p id="error-message"></p>
         </div>
 
-        <!-- Экран для зарегистрированных пользователей -->
-        <div id="registered" class="hidden">
-            <div class="welcome-message">
-                <h2>Добро пожаловать!</h2>
-                <div class="alert alert-info">
-                    <strong>Вы уже зарегистрированы в системе</strong>
-                </div>
-                <div class="user-info">
-                    <p><strong>Имя:</strong> <span id="user-name"></span></p>
-                    <p><strong>Telegram:</strong> <span id="user-telegram"></span></p>
-                    <p><strong>Статус:</strong> <span id="user-status"></span></p>
-                </div>
-            </div>
-        </div>
+                 <!-- Экран для зарегистрированных пользователей -->
+         <div id="registered" class="hidden">
+             <div class="welcome-message">
+                 <h2>Добро пожаловать!</h2>
+                 <div class="alert alert-info">
+                     <strong>Вы уже зарегистрированы в системе</strong>
+                 </div>
+                 <div class="user-info">
+                     <p><strong>Имя:</strong> <span id="user-name"></span></p>
+                     <p><strong>Telegram:</strong> <span id="user-telegram"></span></p>
+                     <p><strong>Статус:</strong> <span id="user-status"></span></p>
+                 </div>
+                 
+                 <!-- Кнопка для партнеров -->
+                 <div id="affiliate-actions" class="hidden">
+                     <div class="alert alert-success">
+                         <strong>🎉 Добро пожаловать в панель партнера!</strong>
+                     </div>
+                     <button class="btn btn-primary" onclick="goToWorkPanel()">
+                         Перейти к работе
+                     </button>
+                 </div>
+             </div>
+         </div>
 
         <!-- Форма регистрации -->
         <div id="registration" class="hidden">
@@ -393,12 +403,23 @@
             });
         }
 
-        function showRegisteredUser(user) {
-            document.getElementById('user-name').textContent = user.full_name;
-            document.getElementById('user-telegram').textContent = user.telegram_username;
-            document.getElementById('user-status').textContent = user.is_affiliate ? 'Партнер' : 'Пользователь';
-            document.getElementById('registered').classList.remove('hidden');
-        }
+                 function showRegisteredUser(user) {
+             document.getElementById('user-name').textContent = user.full_name;
+             document.getElementById('user-telegram').textContent = user.telegram_username;
+             document.getElementById('user-status').textContent = user.is_affiliate ? 'Партнер' : 'Пользователь';
+             
+             // Показываем кнопку для партнеров
+             if (user.is_affiliate) {
+                 document.getElementById('affiliate-actions').classList.remove('hidden');
+             }
+             
+             document.getElementById('registered').classList.remove('hidden');
+         }
+
+         function goToWorkPanel() {
+             // Перенаправляем на панель управления
+             window.location.href = 'index.php';
+         }
 
         function showRegistrationForm() {
             // Заполняем данные из Telegram

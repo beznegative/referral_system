@@ -166,8 +166,8 @@
         <div class="test-controls">
             <h4>🔧 Тестовые режимы</h4>
             <button class="btn btn-warning" onclick="testNewUser()">Новый пользователь</button>
-            <button class="btn btn-info" onclick="testExistingUser()">Существующий пользователь</button>
-            <button class="btn btn-warning" onclick="testExistingAffiliate()">Существующий партнер</button>
+            <button class="btn btn-info" onclick="testExistingUser()">Существующий партнер</button>
+            <button class="btn btn-warning" onclick="testExistingAffiliate()">Существующий пользователь</button>
         </div>
         
         <!-- Экран загрузки -->

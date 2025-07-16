@@ -143,11 +143,18 @@ try {
     
     // Если указан affiliate_id, проверяем, что он существует и является партнером
     if ($data['affiliate_id']) {
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ? AND is_affiliate = 1");
-        $stmt->execute([$data['affiliate_id']]);
-        if (!$stmt->fetch()) {
+        $stmt = $pdo->prepare("SELECT id, full_name FROM users WHERE id = ? AND is_affiliate = 1");
+        if (!$stmt) {
             $pdo->rollBack();
-            sendResponse(['success' => false, 'message' => 'Указанный пригласитель не найден'], 400);
+            sendResponse(['success' => false, 'message' => 'Ошибка подготовки запроса'], 500);
+        }
+        
+        $stmt->execute([$data['affiliate_id']]);
+        $affiliateData = $stmt->fetch();
+        
+        if (!$affiliateData) {
+            $pdo->rollBack();
+            sendResponse(['success' => false, 'message' => 'Указанный пригласитель не найден или не является партнером'], 400);
         }
     }
     
@@ -181,19 +188,8 @@ try {
     
     // Если есть пригласитель, обновляем счетчики рефералов
     if ($data['affiliate_id']) {
-        // Обновляем количество рефералов у пригласителя
-        $stmt = $pdo->prepare("
-            UPDATE users 
-            SET referral_count = (
-                SELECT COUNT(*) FROM users u2 WHERE u2.affiliate_id = users.id
-            ) 
-            WHERE id = ?
-        ");
-        $stmt->execute([$data['affiliate_id']]);
-        
-        // Обновляем всю цепочку рефералов
-        $currentAffiliateId = $data['affiliate_id'];
-        while ($currentAffiliateId) {
+        try {
+            // Обновляем количество рефералов у пригласителя
             $stmt = $pdo->prepare("
                 UPDATE users 
                 SET referral_count = (
@@ -201,13 +197,47 @@ try {
                 ) 
                 WHERE id = ?
             ");
-            $stmt->execute([$currentAffiliateId]);
             
-            // Получаем следующий уровень
-            $stmt = $pdo->prepare("SELECT affiliate_id FROM users WHERE id = ?");
-            $stmt->execute([$currentAffiliateId]);
-            $result = $stmt->fetch();
-            $currentAffiliateId = $result ? $result['affiliate_id'] : null;
+            if (!$stmt) {
+                throw new Exception('Ошибка подготовки запроса обновления счетчиков');
+            }
+            
+            $stmt->execute([$data['affiliate_id']]);
+            
+            // Обновляем всю цепочку рефералов (максимум 10 уровней для защиты от зацикливания)
+            $currentAffiliateId = $data['affiliate_id'];
+            $level = 0;
+            
+            while ($currentAffiliateId && $level < 10) {
+                $stmt = $pdo->prepare("
+                    UPDATE users 
+                    SET referral_count = (
+                        SELECT COUNT(*) FROM users u2 WHERE u2.affiliate_id = users.id
+                    ) 
+                    WHERE id = ?
+                ");
+                
+                if (!$stmt) {
+                    throw new Exception('Ошибка подготовки запроса обновления цепочки');
+                }
+                
+                $stmt->execute([$currentAffiliateId]);
+                
+                // Получаем следующий уровень
+                $stmt = $pdo->prepare("SELECT affiliate_id FROM users WHERE id = ?");
+                if (!$stmt) {
+                    break;
+                }
+                
+                $stmt->execute([$currentAffiliateId]);
+                $result = $stmt->fetch();
+                $currentAffiliateId = $result ? $result['affiliate_id'] : null;
+                $level++;
+            }
+            
+        } catch (Exception $e) {
+            // Логируем ошибку, но не прерываем регистрацию
+            error_log('Ошибка обновления счетчиков рефералов: ' . $e->getMessage());
         }
     }
     

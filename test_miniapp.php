@@ -356,8 +356,16 @@
                     showRegisteredUser(userStatus.user);
                 } else {
                     // Загружаем список партнеров для формы
-                    await loadAffiliates();
-                    showRegistrationForm();
+                    try {
+                        await loadAffiliates();
+                        showRegistrationForm();
+                    } catch (error) {
+                        console.error('Ошибка загрузки партнеров:', error);
+                        // Показываем форму регистрации даже если не удалось загрузить партнеров
+                        showRegistrationForm();
+                        // Можем показать предупреждение пользователю
+                        alert('Внимание: Не удалось загрузить список партнеров. Вы можете зарегистрироваться без выбора пригласителя.');
+                    }
                 }
                 
             } catch (error) {
@@ -383,24 +391,54 @@
         }
 
         async function loadAffiliates() {
-            const response = await fetch('get_affiliates_api.php');
-            
-            if (!response.ok) {
-                throw new Error('Ошибка загрузки партнеров');
+            try {
+                const response = await fetch('get_affiliates_api.php');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                // Проверяем корректность ответа
+                if (!data.success) {
+                    throw new Error(data.error || 'Ошибка загрузки партнеров');
+                }
+                
+                affiliates = data.affiliates || [];
+                
+                // Заполняем select
+                const select = document.getElementById('affiliate_select');
+                select.innerHTML = '<option value="">Выберите пригласителя</option>';
+                
+                if (affiliates.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'Нет доступных партнеров';
+                    option.disabled = true;
+                    select.appendChild(option);
+                    return;
+                }
+                
+                affiliates.forEach(affiliate => {
+                    if (affiliate.id && affiliate.full_name) {
+                        const option = document.createElement('option');
+                        option.value = affiliate.id;
+                        option.textContent = `${affiliate.full_name} (${affiliate.telegram_username || ''})`;
+                        select.appendChild(option);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Ошибка загрузки партнеров:', error);
+                
+                // Показываем пользователю информацию об ошибке
+                const select = document.getElementById('affiliate_select');
+                select.innerHTML = '<option value="">Ошибка загрузки партнеров</option>';
+                
+                // Можем также показать более подробную ошибку
+                throw new Error('Не удалось загрузить список партнеров: ' + error.message);
             }
-            
-            const data = await response.json();
-            affiliates = data.affiliates;
-            
-            // Заполняем select
-            const select = document.getElementById('affiliate_select');
-            select.innerHTML = '<option value="">Выберите пригласителя</option>';
-            affiliates.forEach(affiliate => {
-                const option = document.createElement('option');
-                option.value = affiliate.id;
-                option.textContent = `${affiliate.full_name} (${affiliate.telegram_username})`;
-                select.appendChild(option);
-            });
         }
 
                  function showRegisteredUser(user) {
@@ -456,7 +494,16 @@
                     body: formData
                 });
                 
-                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                let result;
+                try {
+                    result = await response.json();
+                } catch (jsonError) {
+                    throw new Error('Ошибка обработки ответа сервера');
+                }
                 
                 if (result.success) {
                     document.getElementById('registration').classList.add('hidden');

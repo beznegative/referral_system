@@ -1,4 +1,4 @@
-э<?php
+<?php
 require_once 'includes/database.php';
 require_once 'test_encryption.php';
 require_once 'referral_calculator.php';

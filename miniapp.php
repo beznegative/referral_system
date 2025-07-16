@@ -200,7 +200,7 @@
                     <div class="form-group">
                         <label class="form-label" for="phone_number">Номер телефона <span class="required">*</span></label>
                         <input type="tel" class="form-control" id="phone_number" name="phone_number" 
-                               placeholder="89051234567" required>
+                               placeholder="89001234567" required>
                     </div>
 
                     <div class="form-group">
@@ -232,7 +232,7 @@
                 <div class="alert alert-success">
                     <strong>Вы успешно зарегистрировались в системе</strong>
                 </div>
-                <p>Добро пожаловать в нашу реферальную программу!</p>
+                <p>Добро пожаловать!</p>
             </div>
         </div>
     </div>

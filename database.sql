@@ -141,7 +141,7 @@ CREATE TABLE `users` (
   `full_name` varchar(255) NOT NULL,
   `bank_card` text NOT NULL,
   `telegram_username` varchar(255) NOT NULL,
-  `telegram_id` bigint(20) NOT NULL,
+  `telegram_id` bigint(20) DEFAULT NULL,
   `phone_number` varchar(20) NOT NULL,
   `birth_date` date NOT NULL,
   `is_affiliate` tinyint(1) DEFAULT 0,

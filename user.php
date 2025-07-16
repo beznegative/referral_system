@@ -1,4 +1,4 @@
-<?php
+э<?php
 require_once 'includes/database.php';
 require_once 'test_encryption.php';
 require_once 'referral_calculator.php';
@@ -42,11 +42,12 @@ try {
     
     // Рассчитываем выплаты по уровням для партнеров
     $referralEarnings = null;
-    $referralDetails = null;
     if ($user['is_affiliate'] == 1) {
         $referralEarnings = calculateReferralEarnings($pdo, $user['id']);
-        $referralDetails = getReferralDetails($pdo, $user['id']);
     }
+    
+    // Получаем детальную информацию о рефералах для всех пользователей
+    $referralDetails = getReferralDetails($pdo, $user['id']);
 
 } catch (Exception $e) {
     die('Ошибка: ' . htmlspecialchars($e->getMessage()));
@@ -119,6 +120,7 @@ require_once 'includes/header.php';
                     </table>
                 </div>
             </div>
+            <?php endif; ?>
             
             <?php if (!empty($referralDetails)): ?>
             <!-- Детальная информация о рефералах -->
@@ -131,8 +133,10 @@ require_once 'includes/header.php';
                                 <th>Имя</th>
                                 <th>Уровень</th>
                                 <th>Выплачено</th>
+                                <?php if ($user['is_affiliate'] == 1): ?>
                                 <th>Процент</th>
                                 <th>К получению</th>
+                                <?php endif; ?>
                             </tr>
                         </thead>
                         <tbody>
@@ -145,15 +149,16 @@ require_once 'includes/header.php';
                                     </span>
                                 </td>
                                 <td><?php echo number_format($detail['paid_amount'], 2, '.', ' '); ?> ₽</td>
+                                <?php if ($user['is_affiliate'] == 1): ?>
                                 <td><?php echo $detail['percent']; ?>%</td>
                                 <td><?php echo number_format($detail['earning'], 2, '.', ' '); ?> ₽</td>
+                                <?php endif; ?>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
             </div>
-            <?php endif; ?>
             <?php endif; ?>
         </div>
 

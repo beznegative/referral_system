@@ -31,6 +31,7 @@ try {
     $affiliate_id = !empty($_POST['affiliate_id']) ? $_POST['affiliate_id'] : null;
     $paid_amount = !empty($_POST['paid_amount']) ? $_POST['paid_amount'] : 0.00;
     $paid_for_referrals = !empty($_POST['paid_for_referrals']) ? $_POST['paid_for_referrals'] : 0.00;
+    $telegram_id = !empty($_POST['telegram_id']) ? $_POST['telegram_id'] : null;
 
     // Шифруем банковскую карту
     $encrypted_bank_card = encryptData($_POST['bank_card']);
@@ -61,7 +62,7 @@ try {
             $_POST['full_name'],
             $encrypted_bank_card,
             $_POST['telegram_username'],
-            $_POST['telegram_id'],
+            $telegram_id,
             $_POST['phone_number'],
             $_POST['birth_date'],
             $is_affiliate,
@@ -89,7 +90,7 @@ try {
             $_POST['full_name'],
             $encrypted_bank_card,
             $_POST['telegram_username'],
-            $_POST['telegram_id'],
+            $telegram_id,
             $_POST['phone_number'],
             $_POST['birth_date'],
             $is_affiliate,

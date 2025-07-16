@@ -153,12 +153,10 @@ require_once 'includes/header.php';
             <div class="form-group">
                 <label for="telegram_id">
                     ID Telegram
-                    <span class="required">*</span>
                 </label>
                 <input type="number" 
                        id="telegram_id" 
                        name="telegram_id" 
-                       required
                        value="<?= isset($user) ? htmlspecialchars($user['telegram_id']) : '' ?>">
             </div>
 
@@ -178,8 +176,7 @@ require_once 'includes/header.php';
 
             <div class="form-group">
                 <label for="birth_date">
-                    Дата рождения
-                    <span class="required">*</span>
+                    Дата рождения <span class="required">*</span> (не раньше 2007 года)
                 </label>
                 <input type="date" 
                        id="birth_date" 

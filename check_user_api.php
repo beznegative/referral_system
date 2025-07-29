@@ -1,5 +1,22 @@
 <?php
 require_once 'includes/database.php';
+require_once 'check_captcha.php';
+
+// Временно отключаем проверку капчи для тестирования
+// TODO: Включить обратно после тестирования
+/*
+$captchaStatus = checkCaptchaStatus();
+if (!$captchaStatus['verified']) {
+    header('Content-Type: application/json; charset=utf-8');
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Требуется прохождение капчи',
+        'redirect_url' => 'captcha.php?target=miniapp'
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+*/
 
 // Устанавливаем заголовки для API
 header('Content-Type: application/json; charset=utf-8');
@@ -37,7 +54,7 @@ try {
     // Ищем пользователя в базе данных
     $stmt = $pdo->prepare("
         SELECT id, full_name, telegram_username, telegram_id, is_affiliate, 
-               paid_amount, paid_for_referrals, referral_count, created_at
+               total_paid_amount, total_paid_for_referrals, referral_count, created_at
         FROM users 
         WHERE telegram_id = ?
     ");
@@ -54,8 +71,8 @@ try {
                 'telegram_username' => $user['telegram_username'],
                 'telegram_id' => $user['telegram_id'],
                 'is_affiliate' => (bool)$user['is_affiliate'],
-                'paid_amount' => floatval($user['paid_amount']),
-                'paid_for_referrals' => floatval($user['paid_for_referrals']),
+                'paid_amount' => floatval($user['total_paid_amount']),
+                'paid_for_referrals' => floatval($user['total_paid_for_referrals']),
                 'referral_count' => intval($user['referral_count']),
                 'created_at' => $user['created_at']
             ]

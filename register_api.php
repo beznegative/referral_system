@@ -1,6 +1,23 @@
 <?php
 require_once 'includes/database.php';
 require_once 'referral_calculator.php';
+require_once 'check_captcha.php';
+
+// Временно отключаем проверку капчи для тестирования
+// TODO: Включить обратно после тестирования
+/*
+$captchaStatus = checkCaptchaStatus();
+if (!$captchaStatus['verified']) {
+    header('Content-Type: application/json; charset=utf-8');
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Требуется прохождение капчи',
+        'redirect_url' => 'captcha.php?target=miniapp'
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+*/
 
 // Устанавливаем заголовки для API
 header('Content-Type: application/json; charset=utf-8');
@@ -47,31 +64,32 @@ function validateRegistrationData($data) {
         $errors[] = 'ФИО должно содержать минимум 2 символа';
     }
     
-    // Проверка банковской карты
+    // Проверка банковской карты (смягченная проверка)
     if (empty($data['bank_card'])) {
         $errors[] = 'Номер банковской карты обязателен';
     } else {
         $cardNumber = preg_replace('/\s+/', '', $data['bank_card']);
-        if (!preg_match('/^\d{16}$/', $cardNumber)) {
-            $errors[] = 'Номер банковской карты должен содержать 16 цифр';
+        $cardDigits = preg_replace('/[^0-9]/', '', $cardNumber);
+        if (strlen($cardDigits) < 13 || strlen($cardDigits) > 19) {
+            $errors[] = 'Номер банковской карты должен содержать от 13 до 19 цифр';
         }
     }
     
-    // Проверка Telegram username
+    // Проверка Telegram username (смягченная проверка)
     if (empty($data['telegram_username'])) {
         $errors[] = 'Имя пользователя Telegram обязательно';
-    } elseif (!preg_match('/^@[a-zA-Z0-9_]{3,}$/', $data['telegram_username'])) {
-        $errors[] = 'Некорректное имя пользователя Telegram';
+    } elseif (strlen(str_replace('@', '', $data['telegram_username'])) < 2) {
+        $errors[] = 'Имя пользователя Telegram должно содержать минимум 2 символа';
     }
     
-    // Проверка номера телефона
+    // Проверка номера телефона (смягченная проверка)
     if (empty($data['phone_number'])) {
         $errors[] = 'Номер телефона обязателен';
-    } elseif (!preg_match('/^[78]\d{10}$/', $data['phone_number'])) {
-        $errors[] = 'Некорректный номер телефона';
+    } elseif (strlen(preg_replace('/[^0-9]/', '', $data['phone_number'])) < 10) {
+        $errors[] = 'Номер телефона должен содержать минимум 10 цифр';
     }
     
-    // Проверка даты рождения
+    // Проверка даты рождения (смягченная проверка)
     if (empty($data['birth_date'])) {
         $errors[] = 'Дата рождения обязательна';
     } else {
@@ -81,9 +99,7 @@ function validateRegistrationData($data) {
         } else {
             $today = new DateTime();
             $age = $today->diff($birthDate)->y;
-            if ($age < 18) {
-                $errors[] = 'Возраст должен быть не менее 18 лет';
-            } elseif ($age > 100) {
+            if ($age > 120) {
                 $errors[] = 'Некорректная дата рождения';
             }
         }
@@ -141,9 +157,9 @@ try {
         sendResponse(['success' => false, 'message' => 'Пользователь с таким номером телефона уже существует'], 409);
     }
     
-    // Если указан affiliate_id, проверяем, что он существует и является партнером
+    // Если указан affiliate_id, проверяем, что пользователь существует (может быть любой пользователь)
     if ($data['affiliate_id']) {
-        $stmt = $pdo->prepare("SELECT id, full_name FROM users WHERE id = ? AND is_affiliate = 1");
+        $stmt = $pdo->prepare("SELECT id, full_name FROM users WHERE id = ?");
         if (!$stmt) {
             $pdo->rollBack();
             sendResponse(['success' => false, 'message' => 'Ошибка подготовки запроса'], 500);
@@ -154,7 +170,7 @@ try {
         
         if (!$affiliateData) {
             $pdo->rollBack();
-            sendResponse(['success' => false, 'message' => 'Указанный пригласитель не найден или не является партнером'], 400);
+            sendResponse(['success' => false, 'message' => 'Указанный пригласитель не найден'], 400);
         }
     }
     
@@ -170,7 +186,7 @@ try {
         INSERT INTO users (
             full_name, bank_card, telegram_username, telegram_id, 
             phone_number, birth_date, is_affiliate, affiliate_id,
-            paid_amount, paid_for_referrals, referral_count
+            total_paid_amount, total_paid_for_referrals, referral_count
         ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0.00, 0.00, 0)
     ");
     

@@ -572,57 +572,168 @@ select {
     transition: all 0.2s ease;
 }
 
-/* Специальные стили для поля даты */
-input[type="date"] {
+/* Специальные стили для полей с датой и месяцем */
+input[type="date"],
+input[type="month"] {
     width: 100%;
     padding: 0.75rem 1rem;
     border: 2px solid var(--border-color);
     border-radius: var(--radius-sm);
-    font-size: 16px !important;
+    font-size: 16px !important; /* Предотвращает зум на iOS */
     color: var(--text-primary);
     background-color: var(--card-background);
     transition: all 0.2s ease;
     cursor: pointer;
-    min-height: 45px;
+    min-height: 48px; /* Увеличиваем для лучшего касания */
     font-family: inherit;
+    position: relative;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
 }
 
-/* Дополнительные стили для поля даты */
-input[type="date"]::-webkit-calendar-picker-indicator {
-    opacity: 1;
-    width: 24px;
-    height: 24px;
+/* Улучшенные стили для календарной иконки */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+    opacity: 0.7;
+    width: 20px;
+    height: 20px;
     cursor: pointer;
-    margin-right: 5px;
+    margin-left: 8px;
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+    background: transparent;
 }
 
-input[type="date"]:hover {
+/* Эффекты при наведении */
+input[type="date"]:hover,
+input[type="month"]:hover {
     border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.1);
 }
 
-input[type="date"]:focus {
+input[type="date"]:hover::-webkit-calendar-picker-indicator,
+input[type="month"]:hover::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    background-color: rgba(37, 99, 235, 0.1);
+}
+
+/* Эффекты при фокусе */
+input[type="date"]:focus,
+input[type="month"]:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-/* Стили для Firefox */
-input[type="date"]::-moz-calendar-picker-indicator {
+input[type="date"]:focus::-webkit-calendar-picker-indicator,
+input[type="month"]:focus::-webkit-calendar-picker-indicator {
     opacity: 1;
-    width: 24px;
-    height: 24px;
-    cursor: pointer;
+    background-color: rgba(37, 99, 235, 0.2);
 }
 
-/* Дополнительные стили для темной темы */
-[data-theme="dark"] input[type="date"] {
+/* Стили для Firefox */
+input[type="date"]::-moz-calendar-picker-indicator,
+input[type="month"]::-moz-calendar-picker-indicator {
+    opacity: 0.7;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+input[type="date"]:hover::-moz-calendar-picker-indicator,
+input[type="month"]:hover::-moz-calendar-picker-indicator {
+    opacity: 1;
+}
+
+/* Стили для недоступного состояния */
+input[type="date"]:disabled,
+input[type="month"]:disabled {
+    background-color: var(--background-color);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+input[type="date"]:disabled::-webkit-calendar-picker-indicator,
+input[type="month"]:disabled::-webkit-calendar-picker-indicator {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Стили для темной темы */
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="month"] {
     color-scheme: dark;
     background-color: var(--card-background);
+    border-color: var(--border-color);
     color: var(--text-primary);
 }
 
-[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1);
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8) brightness(1.2);
+}
+
+[data-theme="dark"] input[type="date"]:hover,
+[data-theme="dark"] input[type="month"]:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.1);
+}
+
+[data-theme="dark"] input[type="date"]:focus,
+[data-theme="dark"] input[type="month"]:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Дополнительные стили для улучшения визуала */
+input[type="date"]::before,
+input[type="month"]::before {
+    content: attr(placeholder);
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    pointer-events: none;
+    transition: all 0.2s ease;
+}
+
+input[type="date"]:focus::before,
+input[type="month"]:focus::before,
+input[type="date"]:valid::before,
+input[type="month"]:valid::before {
+    opacity: 0;
+}
+
+/* Мобильные стили для полей с датой */
+@media (max-width: 768px) {
+    input[type="date"],
+    input[type="month"] {
+        min-height: 50px; /* Больше для мобильных касаний */
+        font-size: 16px; /* Предотвращает зум */
+        padding: 0.875rem 1rem;
+    }
+    
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="month"]::-webkit-calendar-picker-indicator {
+        width: 24px;
+        height: 24px;
+        margin-left: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    input[type="date"],
+    input[type="month"] {
+        min-height: 52px;
+        font-size: 16px;
+        padding: 1rem;
+        border-width: 1px; /* Тоньше границы на маленьких экранах */
+    }
 }
 
 input[type="file"] {
@@ -1567,6 +1678,16 @@ h1 {
     color: white;
 }
 
+.btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.btn-success:hover {
+    background: #16a34a;
+    color: white;
+}
+
 .btn-outline-primary {
     background: transparent;
     color: var(--primary-color);
@@ -2170,4 +2291,118 @@ h1 {
         font-size: 0.8125rem;
         margin: 0.25rem;
     }
+}
+
+/* Стили для автоматического обновления полей */
+.auto-updated {
+    background-color: #e8f5e8 !important;
+    transition: background-color 0.3s ease;
+}
+
+.tooltip-auto-update {
+    position: absolute;
+    background: var(--primary-color);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    z-index: 1000;
+    top: -35px;
+    left: 0;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    animation: tooltip-fade-in 0.3s ease;
+}
+
+.tooltip-auto-update::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 15px;
+    border: 5px solid transparent;
+    border-top-color: var(--primary-color);
+}
+
+@keyframes tooltip-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes notification-slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Стили для уведомлений об обновлении */
+.update-notification {
+    position: absolute;
+    background: var(--success-color);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    z-index: 1000;
+    top: -40px;
+    right: 0;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    animation: notification-slide-in 0.3s ease;
+}
+
+.update-notification::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 15px;
+    border: 5px solid transparent;
+    border-top-color: var(--success-color);
+}
+
+/* Стили для индикации связанных полей */
+.form-group.related-field {
+    position: relative;
+}
+
+.form-group.related-field::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    background: var(--success-color);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.form-group.related-field.active::after {
+    opacity: 1;
+}
+
+/* Стили для полей с автоматическим расчетом в темной теме */
+[data-theme="dark"] .auto-updated {
+    background-color: rgba(34, 197, 94, 0.1) !important;
+}
+
+[data-theme="dark"] .tooltip-auto-update {
+    background: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+[data-theme="dark"] .tooltip-auto-update::after {
+    border-top-color: var(--primary-color);
 } 

@@ -11,7 +11,7 @@ try {
     
     // 1. Иван (партнер)
     $ivan_stmt = $pdo->prepare("
-        INSERT INTO users (full_name, bank_card, telegram_username, telegram_id, phone_number, birth_date, is_affiliate, paid_amount, paid_for_referrals)
+        INSERT INTO users (full_name, bank_card, telegram_username, telegram_id, phone_number, birth_date, is_affiliate, total_paid_amount, total_paid_for_referrals)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     $ivan_stmt->execute([
@@ -30,7 +30,7 @@ try {
     
     // 2. Вася (реферал Ивана)
     $vasya_stmt = $pdo->prepare("
-        INSERT INTO users (full_name, bank_card, telegram_username, telegram_id, phone_number, birth_date, is_affiliate, affiliate_id, paid_amount, paid_for_referrals)
+        INSERT INTO users (full_name, bank_card, telegram_username, telegram_id, phone_number, birth_date, is_affiliate, affiliate_id, total_paid_amount, total_paid_for_referrals)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     $vasya_stmt->execute([
@@ -50,7 +50,7 @@ try {
     
     // 3. Первый человек, которого привел Вася
     $user1_stmt = $pdo->prepare("
-        INSERT INTO users (full_name, bank_card, telegram_username, telegram_id, phone_number, birth_date, is_affiliate, affiliate_id, paid_amount, paid_for_referrals)
+        INSERT INTO users (full_name, bank_card, telegram_username, telegram_id, phone_number, birth_date, is_affiliate, affiliate_id, total_paid_amount, total_paid_for_referrals)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     $user1_stmt->execute([
@@ -70,7 +70,7 @@ try {
     
     // 4. Второй человек, которого привел Вася
     $user2_stmt = $pdo->prepare("
-        INSERT INTO users (full_name, bank_card, telegram_username, telegram_id, phone_number, birth_date, is_affiliate, affiliate_id, paid_amount, paid_for_referrals)
+        INSERT INTO users (full_name, bank_card, telegram_username, telegram_id, phone_number, birth_date, is_affiliate, affiliate_id, total_paid_amount, total_paid_for_referrals)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     $user2_stmt->execute([
@@ -90,7 +90,7 @@ try {
     
     // 5. Третий уровень - человек, которого привел первый пользователь
     $user3_stmt = $pdo->prepare("
-        INSERT INTO users (full_name, bank_card, telegram_username, telegram_id, phone_number, birth_date, is_affiliate, affiliate_id, paid_amount, paid_for_referrals)
+        INSERT INTO users (full_name, bank_card, telegram_username, telegram_id, phone_number, birth_date, is_affiliate, affiliate_id, total_paid_amount, total_paid_for_referrals)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     $user3_stmt->execute([
@@ -114,57 +114,57 @@ try {
     
     // Тест 1: Васе выплачивают 5000, Иван должен получить 2500 (50%)
     echo "<h3>Тест 1: Васе выплачивают 5000</h3>\n";
-    $pdo->prepare("UPDATE users SET paid_amount = ? WHERE id = ?")->execute([5000, $vasya_id]);
+    $pdo->prepare("UPDATE users SET total_paid_amount = ? WHERE id = ?")->execute([5000, $vasya_id]);
     updateAffiliatePayments($pdo, $vasya_id);
     
     // Проверяем результат
-    $ivan_earnings = $pdo->prepare("SELECT paid_for_referrals FROM users WHERE id = ?");
+    $ivan_earnings = $pdo->prepare("SELECT total_paid_for_referrals FROM users WHERE id = ?");
     $ivan_earnings->execute([$ivan_id]);
     $ivan_result = $ivan_earnings->fetch(PDO::FETCH_ASSOC);
     
-    echo "Иван получил за рефералов: " . $ivan_result['paid_for_referrals'] . " ₽ (ожидалось: 2500 ₽)<br>\n";
+    echo "Иван получил за рефералов: " . $ivan_result['total_paid_for_referrals'] . " ₽ (ожидалось: 2500 ₽)<br>\n";
     
     // Тест 2: Первому и второму пользователю выплачивают по 1000
     echo "<h3>Тест 2: Первому и второму пользователю выплачивают по 1000</h3>\n";
-    $pdo->prepare("UPDATE users SET paid_amount = ? WHERE id = ?")->execute([1000, $user1_id]);
-    $pdo->prepare("UPDATE users SET paid_amount = ? WHERE id = ?")->execute([1000, $user2_id]);
+    $pdo->prepare("UPDATE users SET total_paid_amount = ? WHERE id = ?")->execute([1000, $user1_id]);
+    $pdo->prepare("UPDATE users SET total_paid_amount = ? WHERE id = ?")->execute([1000, $user2_id]);
     updateAffiliatePayments($pdo, $user1_id);
     updateAffiliatePayments($pdo, $user2_id);
     
     // Проверяем результат для Васи (должен получить 1000 - 50% от 2*1000)
-    $vasya_earnings = $pdo->prepare("SELECT paid_for_referrals FROM users WHERE id = ?");
+    $vasya_earnings = $pdo->prepare("SELECT total_paid_for_referrals FROM users WHERE id = ?");
     $vasya_earnings->execute([$vasya_id]);
     $vasya_result = $vasya_earnings->fetch(PDO::FETCH_ASSOC);
     
     // Проверяем результат для Ивана (должен получить дополнительно 500 - 25% от 2*1000)
-    $ivan_earnings = $pdo->prepare("SELECT paid_for_referrals FROM users WHERE id = ?");
+    $ivan_earnings = $pdo->prepare("SELECT total_paid_for_referrals FROM users WHERE id = ?");
     $ivan_earnings->execute([$ivan_id]);
     $ivan_result = $ivan_earnings->fetch(PDO::FETCH_ASSOC);
     
-    echo "Вася получил за рефералов: " . $vasya_result['paid_for_referrals'] . " ₽ (ожидалось: 1000 ₽)<br>\n";
-    echo "Иван получил за рефералов: " . $ivan_result['paid_for_referrals'] . " ₽ (ожидалось: 3000 ₽)<br>\n";
+    echo "Вася получил за рефералов: " . $vasya_result['total_paid_for_referrals'] . " ₽ (ожидалось: 1000 ₽)<br>\n";
+    echo "Иван получил за рефералов: " . $ivan_result['total_paid_for_referrals'] . " ₽ (ожидалось: 3000 ₽)<br>\n";
     
     // Тест 3: Третьему пользователю выплачивают 1000
     echo "<h3>Тест 3: Третьему пользователю выплачивают 1000</h3>\n";
-    $pdo->prepare("UPDATE users SET paid_amount = ? WHERE id = ?")->execute([1000, $user3_id]);
+    $pdo->prepare("UPDATE users SET total_paid_amount = ? WHERE id = ?")->execute([1000, $user3_id]);
     updateAffiliatePayments($pdo, $user3_id);
     
     // Проверяем результаты
-    $user1_earnings = $pdo->prepare("SELECT paid_for_referrals FROM users WHERE id = ?");
+    $user1_earnings = $pdo->prepare("SELECT total_paid_for_referrals FROM users WHERE id = ?");
     $user1_earnings->execute([$user1_id]);
     $user1_result = $user1_earnings->fetch(PDO::FETCH_ASSOC);
     
-    $vasya_earnings = $pdo->prepare("SELECT paid_for_referrals FROM users WHERE id = ?");
+    $vasya_earnings = $pdo->prepare("SELECT total_paid_for_referrals FROM users WHERE id = ?");
     $vasya_earnings->execute([$vasya_id]);
     $vasya_result = $vasya_earnings->fetch(PDO::FETCH_ASSOC);
     
-    $ivan_earnings = $pdo->prepare("SELECT paid_for_referrals FROM users WHERE id = ?");
+    $ivan_earnings = $pdo->prepare("SELECT total_paid_for_referrals FROM users WHERE id = ?");
     $ivan_earnings->execute([$ivan_id]);
     $ivan_result = $ivan_earnings->fetch(PDO::FETCH_ASSOC);
     
-    echo "Первый пользователь получил за рефералов: " . $user1_result['paid_for_referrals'] . " ₽ (ожидалось: 500 ₽)<br>\n";
-    echo "Вася получил за рефералов: " . $vasya_result['paid_for_referrals'] . " ₽ (ожидалось: 1250 ₽)<br>\n";
-    echo "Иван получил за рефералов: " . $ivan_result['paid_for_referrals'] . " ₽ (ожидалось: 3100 ₽)<br>\n";
+    echo "Первый пользователь получил за рефералов: " . $user1_result['total_paid_for_referrals'] . " ₽ (ожидалось: 500 ₽)<br>\n";
+    echo "Вася получил за рефералов: " . $vasya_result['total_paid_for_referrals'] . " ₽ (ожидалось: 1250 ₽)<br>\n";
+    echo "Иван получил за рефералов: " . $ivan_result['total_paid_for_referrals'] . " ₽ (ожидалось: 3100 ₽)<br>\n";
     
     echo "<h2>Детальная информация по выплатам</h2>\n";
     

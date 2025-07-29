@@ -77,9 +77,16 @@ require_once 'includes/header.php';
             <!-- Новые поля для реферальной системы -->
             <div class="referral-info mt-3">
                 <h4>Реферальная информация</h4>
-                <p><strong>Выплаченно в рублях:</strong> <?php echo number_format($user['paid_amount'], 2, '.', ' '); ?> ₽</p>
+                <p><strong>Всего выплачено в рублях:</strong> <?php echo number_format($user['total_paid_amount'], 2, '.', ' '); ?> ₽</p>
+                <p><strong>Всего выплачено за рефералов:</strong> <?php echo number_format($user['total_paid_for_referrals'], 2, '.', ' '); ?> ₽</p>
                 <p><strong>Количество рефералов:</strong> <?php echo $user['referral_count']; ?></p>
-                <p><strong>Выплаченно за рефералов:</strong> <?php echo number_format($user['paid_for_referrals'], 2, '.', ' '); ?> ₽</p>
+                
+                <!-- Месячные выплаты -->
+                <div class="monthly-payments mt-2" style="border-top: 1px solid #ddd; padding-top: 10px;">
+                    <h5>За текущий месяц (<?php echo $user['payment_month'] ?: date('Y-m'); ?>)</h5>
+                    <p><strong>Выплачено в рублях:</strong> <?php echo number_format($user['monthly_paid_amount'], 2, '.', ' '); ?> ₽</p>
+                    <p><strong>Выплачено за рефералов:</strong> <?php echo number_format($user['monthly_paid_for_referrals'], 2, '.', ' '); ?> ₽</p>
+                </div>
             </div>
             
             <?php if ($user['is_affiliate'] == 1 && $referralEarnings): ?>
@@ -173,15 +180,42 @@ require_once 'includes/header.php';
             </div>
         <?php endif; ?>
 
-        <div class="mt-4">
-            <a href="user_form.php?id=<?php echo $user['id']; ?>" class="btn btn-primary">Редактировать</a>
+        <div class="mt-4" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <?php 
             // Формируем ссылку для Telegram (убираем @ если есть)
             $telegram_link = 'https://t.me/' . ltrim($user['telegram_username'], '@');
             ?>
             <a href="<?php echo $telegram_link; ?>" target="_blank" class="btn btn-success">Написать в Telegram</a>
+            <a href="user_form.php?id=<?php echo $user['id']; ?>" class="btn btn-primary">Редактировать</a>
+            
+            <!-- Кнопка удаления пользователя -->
+            <button type="button" class="btn btn-danger" onclick="confirmDelete(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['full_name'], ENT_QUOTES); ?>')">
+                Удалить пользователя
+            </button>
             <a href="index.php" class="btn btn-secondary">Назад</a>
         </div>
+        
+        <!-- Форма для удаления пользователя (скрытая) -->
+        <form id="deleteForm" method="POST" action="delete_user.php" style="display: none;">
+            <input type="hidden" name="user_id" id="deleteUserId" value="">
+        </form>
+        
+        <script>
+        function confirmDelete(userId, userName) {
+            if (confirm('Вы уверены, что хотите удалить пользователя "' + userName + '"?\n\nЭто действие нельзя отменить!\n\n' +
+                       'При удалении будут также удалены:\n' +
+                       '- Все связанные записи о доходах\n' +
+                       '- Связи с букмекерскими конторами\n' +
+                       '- У рефералов этого пользователя будет сброшена связь с ним')) {
+                
+                // Дополнительное подтверждение для критического действия
+                if (confirm('ВНИМАНИЕ! Последнее предупреждение!\n\nДанные пользователя "' + userName + '" будут удалены НАВСЕГДА!\n\nПродолжить?')) {
+                    document.getElementById('deleteUserId').value = userId;
+                    document.getElementById('deleteForm').submit();
+                }
+            }
+        }
+        </script>
     </div>
 
 

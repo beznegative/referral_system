@@ -1,3 +1,8 @@
+<?php
+// Проверяем капчу перед показом страницы
+require_once 'check_captcha.php';
+requireCaptcha('test');
+?>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -7,8 +12,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            background-color: #ffffff;
-            color: #000000;
+            background-color: #1a1a1a;
+            color: #ffffff;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             padding: 20px;
             margin: 0;
@@ -20,21 +25,48 @@
         }
         
         .card {
-            background-color: #f8f9fa;
+            background-color: #2d2d2d;
             border: none;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .card h3 {
+            color: #ffffff !important;
+            font-weight: 700;
+            margin-bottom: 20px;
         }
         
         .form-control {
             border-radius: 8px;
-            border: 1px solid #999999;
+            border: 1px solid #555555;
             padding: 12px;
             margin-bottom: 15px;
-            background-color: #ffffff;
-            color: #000000;
+            background-color: #3a3a3a;
+            color: #ffffff;
+        }
+        
+        .form-control:focus {
+            background-color: #3a3a3a;
+            border-color: #007bff;
+            color: #ffffff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        
+        .form-control::placeholder {
+            color: #888888;
+            opacity: 1;
+        }
+        
+        .form-control::-webkit-input-placeholder {
+            color: #888888;
+        }
+        
+        .form-control::-moz-placeholder {
+            color: #888888;
+            opacity: 1;
         }
         
         .btn-primary {
@@ -70,15 +102,15 @@
         }
         
         .alert-success {
-            background-color: rgba(40, 167, 69, 0.1);
-            color: #155724;
-            border: 1px solid rgba(40, 167, 69, 0.2);
+            background-color: rgba(40, 167, 69, 0.2);
+            color: #75dd88;
+            border: 1px solid rgba(40, 167, 69, 0.4);
         }
         
         .alert-info {
-            background-color: rgba(23, 162, 184, 0.1);
-            color: #0c5460;
-            border: 1px solid rgba(23, 162, 184, 0.2);
+            background-color: rgba(23, 162, 184, 0.2);
+            color: #17a2b8;
+            border: 1px solid rgba(23, 162, 184, 0.4);
         }
         
         .welcome-message {
@@ -87,12 +119,12 @@
         }
         
         .welcome-message h2 {
-            color: #000000;
+            color: #ffffff;
             margin-bottom: 20px;
         }
         
         .user-info {
-            background-color: #f8f9fa;
+            background-color: #3a3a3a;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
@@ -103,7 +135,7 @@
         }
         
         .error {
-            color: #dc3545;
+            color: #ff6b6b;
             text-align: center;
             padding: 20px;
         }
@@ -116,7 +148,7 @@
             font-weight: 600;
             margin-bottom: 5px;
             display: block;
-            color: #000000;
+            color: #ffffff;
         }
         
         .required {
@@ -124,16 +156,17 @@
         }
         
         .inviter-info {
-            background-color: rgba(23, 162, 184, 0.1);
+            background-color: rgba(23, 162, 184, 0.2);
             padding: 10px;
             border-radius: 6px;
             margin-top: 5px;
             font-size: 0.9em;
+            color: #ffffff;
         }
         
         .test-controls {
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
+            background-color: #3a3a3a;
+            border: 1px solid #555555;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
@@ -141,7 +174,7 @@
         
         .test-controls h4 {
             margin-bottom: 15px;
-            color: #856404;
+            color: #ffc107;
         }
         
         .btn-warning {
@@ -158,6 +191,89 @@
             color: #fff;
             margin-right: 10px;
             margin-bottom: 5px;
+        }
+        
+        select.form-control {
+            background-color: #3a3a3a;
+            color: #ffffff;
+            border: 1px solid #555555;
+        }
+        
+        select.form-control option {
+            background-color: #3a3a3a;
+            color: #ffffff;
+        }
+        
+        .search-results {
+            background-color: #3a3a3a;
+            border: 1px solid #555555;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .search-result-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #555555;
+        }
+        
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .search-result-item:hover {
+            background-color: #4a4a4a;
+        }
+        
+        .search-result-item .name {
+            font-weight: 600;
+            color: #ffffff;
+        }
+        
+        .search-result-item .username {
+            color: #17a2b8;
+            font-size: 0.9em;
+        }
+        
+        .search-result-item .badge {
+            font-size: 0.8em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 5px;
+        }
+        
+        .search-result-item .badge.partner {
+            background-color: #28a745;
+            color: #ffffff;
+        }
+        
+        .search-result-item .badge.user {
+            background-color: #6c757d;
+            color: #ffffff;
+        }
+        
+        .selected-inviter {
+            background-color: rgba(23, 162, 184, 0.2);
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #ffffff;
+            border: 1px solid rgba(23, 162, 184, 0.4);
+        }
+        
+        .selected-inviter .remove-btn {
+            float: right;
+            background: none;
+            border: none;
+            color: #ff6b6b;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 0;
+            margin-left: 10px;
         }
     </style>
 </head>
@@ -223,7 +339,7 @@
                     <div class="form-group">
                         <label class="form-label" for="bank_card">Номер банковской карты <span class="required">*</span></label>
                         <input type="text" class="form-control" id="bank_card" name="bank_card" 
-                               placeholder="1234 5678 9012 3456" maxlength="19" required>
+                               placeholder="2200 1234 5678 9012" maxlength="19" required>
                     </div>
 
                     <div class="form-group">
@@ -235,7 +351,7 @@
                     <div class="form-group">
                         <label class="form-label" for="phone_number">Номер телефона <span class="required">*</span></label>
                         <input type="tel" class="form-control" id="phone_number" name="phone_number" 
-                               placeholder="89001234567" required>
+                               placeholder="+79001234567" required>
                     </div>
 
                     <div class="form-group">
@@ -244,11 +360,12 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="affiliate_select">Пригласил</label>
-                        <select class="form-control" id="affiliate_select" name="affiliate_id">
-                            <option value="">Выберите пригласителя</option>
-                        </select>
-                        <div id="affiliate-info" class="inviter-info hidden"></div>
+                        <label class="form-label" for="inviter_search">Пригласил</label>
+                        <input type="text" class="form-control" id="inviter_search" 
+                               placeholder="Введите @username или имя..." autocomplete="off">
+                        <div id="search-results" class="search-results hidden"></div>
+                        <div id="selected-inviter" class="selected-inviter hidden"></div>
+                        <input type="hidden" id="affiliate_id" name="affiliate_id">
                     </div>
 
                     <input type="hidden" id="telegram_id" name="telegram_id">
@@ -300,7 +417,6 @@
         
         // Данные пользователя из Telegram
         let telegramUser = null;
-        let affiliates = [];
         
         // Функции для тестирования
         function testNewUser() {
@@ -323,6 +439,9 @@
             document.querySelectorAll('.container > div:not(.test-controls)').forEach(div => {
                 div.classList.add('hidden');
             });
+            
+            // Очищаем выбор пригласителя
+            clearSelection();
             
             // Показываем загрузку
             document.getElementById('loading').classList.remove('hidden');
@@ -355,17 +474,7 @@
                 if (userStatus.exists) {
                     showRegisteredUser(userStatus.user);
                 } else {
-                    // Загружаем список партнеров для формы
-                    try {
-                        await loadAffiliates();
-                        showRegistrationForm();
-                    } catch (error) {
-                        console.error('Ошибка загрузки партнеров:', error);
-                        // Показываем форму регистрации даже если не удалось загрузить партнеров
-                        showRegistrationForm();
-                        // Можем показать предупреждение пользователю
-                        alert('Внимание: Не удалось загрузить список партнеров. Вы можете зарегистрироваться без выбора пригласителя.');
-                    }
+                    showRegistrationForm();
                 }
                 
             } catch (error) {
@@ -390,9 +499,17 @@
             return await response.json();
         }
 
-        async function loadAffiliates() {
+        let searchTimeout;
+        let selectedUser = null;
+
+        async function searchUsers(query) {
             try {
-                const response = await fetch('get_affiliates_api.php');
+                if (!query || query.trim().length < 2) {
+                    hideSearchResults();
+                    return;
+                }
+                
+                const response = await fetch(`search_users_api.php?search=${encodeURIComponent(query)}`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -400,45 +517,77 @@
                 
                 const data = await response.json();
                 
-                // Проверяем корректность ответа
                 if (!data.success) {
-                    throw new Error(data.error || 'Ошибка загрузки партнеров');
+                    throw new Error(data.error || 'Ошибка поиска пользователей');
                 }
                 
-                affiliates = data.affiliates || [];
-                
-                // Заполняем select
-                const select = document.getElementById('affiliate_select');
-                select.innerHTML = '<option value="">Выберите пригласителя</option>';
-                
-                if (affiliates.length === 0) {
-                    const option = document.createElement('option');
-                    option.value = '';
-                    option.textContent = 'Нет доступных партнеров';
-                    option.disabled = true;
-                    select.appendChild(option);
-                    return;
-                }
-                
-                affiliates.forEach(affiliate => {
-                    if (affiliate.id && affiliate.full_name) {
-                        const option = document.createElement('option');
-                        option.value = affiliate.id;
-                        option.textContent = `${affiliate.full_name} (${affiliate.telegram_username || ''})`;
-                        select.appendChild(option);
-                    }
-                });
+                showSearchResults(data.users || []);
                 
             } catch (error) {
-                console.error('Ошибка загрузки партнеров:', error);
-                
-                // Показываем пользователю информацию об ошибке
-                const select = document.getElementById('affiliate_select');
-                select.innerHTML = '<option value="">Ошибка загрузки партнеров</option>';
-                
-                // Можем также показать более подробную ошибку
-                throw new Error('Не удалось загрузить список партнеров: ' + error.message);
+                console.error('Ошибка поиска пользователей:', error);
+                hideSearchResults();
             }
+        }
+
+        function showSearchResults(users) {
+            const resultsDiv = document.getElementById('search-results');
+            
+            if (users.length === 0) {
+                resultsDiv.innerHTML = '<div class="search-result-item">Пользователи не найдены</div>';
+                resultsDiv.classList.remove('hidden');
+                return;
+            }
+            
+            let html = '';
+            users.forEach(user => {
+                const badge = user.is_affiliate ? 
+                    '<span class="badge partner">Партнер</span>' : 
+                    '<span class="badge user">Пользователь</span>';
+                
+                const displayUsername = user.telegram_username.startsWith('@') ? user.telegram_username : `@${user.telegram_username}`;
+                html += `
+                    <div class="search-result-item" onclick="selectUser(${user.id}, '${user.full_name}', '${user.telegram_username}', ${user.is_affiliate}, ${user.referral_count})">
+                        <div class="name">${user.full_name} ${badge}</div>
+                        <div class="username">${displayUsername}</div>
+                        ${user.referral_count > 0 ? `<div style="font-size: 0.8em; color: #888;">Рефералов: ${user.referral_count}</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html;
+            resultsDiv.classList.remove('hidden');
+        }
+
+        function hideSearchResults() {
+            document.getElementById('search-results').classList.add('hidden');
+        }
+
+        function selectUser(id, name, username, isAffiliate, referralCount) {
+            selectedUser = { id, name, username, isAffiliate, referralCount };
+            
+            // Проверяем, начинается ли username с @
+            const displayUsername = username.startsWith('@') ? username : `@${username}`;
+            document.getElementById('inviter_search').value = displayUsername;
+            document.getElementById('affiliate_id').value = id;
+            
+            const selectedDiv = document.getElementById('selected-inviter');
+            
+            const displayUsernameForInfo = username.startsWith('@') ? username : `@${username}`;
+            selectedDiv.innerHTML = `
+                <strong>${name}</strong><br>
+                Telegram: ${displayUsernameForInfo}
+                <button type="button" class="remove-btn" onclick="clearSelection()">&times;</button>
+            `;
+            selectedDiv.classList.remove('hidden');
+            
+            hideSearchResults();
+        }
+
+        function clearSelection() {
+            selectedUser = null;
+            document.getElementById('inviter_search').value = '';
+            document.getElementById('affiliate_id').value = '';
+            document.getElementById('selected-inviter').classList.add('hidden');
         }
 
                  function showRegisteredUser(user) {
@@ -469,6 +618,10 @@
                 const fullName = [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(' ');
                 document.getElementById('full_name').value = fullName;
             }
+            
+            // Убеждаемся, что selected-inviter скрыт при инициализации
+            document.getElementById('selected-inviter').classList.add('hidden');
+            document.getElementById('search-results').classList.add('hidden');
             
             document.getElementById('registration').classList.remove('hidden');
         }
@@ -541,24 +694,20 @@
             this.value = this.value.replace(/[^0-9]/g, '');
         });
 
-        // Показ информации о пригласителе
-        document.getElementById('affiliate_select').addEventListener('change', function() {
-            const selectedId = this.value;
-            const infoDiv = document.getElementById('affiliate-info');
+        // Обработчик поиска пригласителя
+        document.getElementById('inviter_search').addEventListener('input', function() {
+            const query = this.value;
             
-            if (selectedId) {
-                const affiliate = affiliates.find(a => a.id == selectedId);
-                if (affiliate) {
-                    infoDiv.innerHTML = `
-                        <strong>Информация о пригласителе:</strong><br>
-                        Имя: ${affiliate.full_name}<br>
-                        Telegram: ${affiliate.telegram_username}<br>
-                        Рефералов: ${affiliate.referral_count}
-                    `;
-                    infoDiv.classList.remove('hidden');
-                }
-            } else {
-                infoDiv.classList.add('hidden');
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchUsers(query);
+            }, 300);
+        });
+
+        // Скрыть результаты при клике вне поля
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#inviter_search') && !e.target.closest('#search-results')) {
+                hideSearchResults();
             }
         });
     </script>

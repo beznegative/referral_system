@@ -15,6 +15,19 @@ require_once 'includes/header.php';
 <div class="container">
     <h1>Список пользователей</h1>
     
+    <?php
+    // Отображение сообщений об успехе или ошибке
+    session_start();
+    if (isset($_SESSION['success_message'])) {
+        echo '<div class="alert alert-success" role="alert">' . htmlspecialchars($_SESSION['success_message']) . '</div>';
+        unset($_SESSION['success_message']);
+    }
+    if (isset($_SESSION['error_message'])) {
+        echo '<div class="alert alert-error" role="alert">' . htmlspecialchars($_SESSION['error_message']) . '</div>';
+        unset($_SESSION['error_message']);
+    }
+    ?>
+    
     <!-- Вкладки -->
     <div class="tabs">
         <a href="?tab=users" class="tab <?= $activeTab === 'users' ? 'active' : '' ?>">Пользователи</a>
@@ -71,10 +84,10 @@ require_once 'includes/header.php';
                                 <div class="user-card-info">
                                     <h3 class="user-name"><?= htmlspecialchars($user['full_name']) ?></h3>
                                     <div class="user-stats">
-                                        <span class="stat-item">Выплачено: <?= number_format($user['paid_amount'], 2, '.', ' ') ?> ₽</span>
+                                        <span class="stat-item">Выплачено: <?= number_format($user['total_paid_amount'], 2, '.', ' ') ?> ₽</span>
                                         <?php if ($user['is_affiliate']): ?>
                                             <span class="stat-item">Рефералов: <?= $user['referral_count'] ?></span>
-                                            <span class="stat-item">За рефералов: <?= number_format($user['paid_for_referrals'], 2, '.', ' ') ?> ₽</span>
+                                            <span class="stat-item">За рефералов: <?= number_format($user['total_paid_for_referrals'], 2, '.', ' ') ?> ₽</span>
                                         <?php endif; ?>
                                     </div>
                                 </div>

@@ -16,13 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             switch ($_POST['action']) {
                 case 'update_payments':
                     // Обновление сумм выплат
-                    if (isset($_POST['user_id']) && isset($_POST['paid_amount']) && isset($_POST['paid_for_referrals'])) {
+                    if (isset($_POST['user_id']) && isset($_POST['total_paid_amount']) && isset($_POST['total_paid_for_referrals'])) {
                         $stmt = $pdo->prepare("
                             UPDATE users 
-                            SET paid_amount = ?, paid_for_referrals = ? 
+                            SET total_paid_amount = ?, total_paid_for_referrals = ? 
                             WHERE id = ?
                         ");
-                        $stmt->execute([$_POST['paid_amount'], $_POST['paid_for_referrals'], $_POST['user_id']]);
+                        $stmt->execute([$_POST['total_paid_amount'], $_POST['total_paid_for_referrals'], $_POST['user_id']]);
                         $success = "Выплаты обновлены успешно!";
                     }
                     break;
@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                 case 'reset_payments':
                     // Сброс всех выплат
-                    $stmt = $pdo->prepare("UPDATE users SET paid_amount = 0.00, paid_for_referrals = 0.00");
+                    $stmt = $pdo->prepare("UPDATE users SET total_paid_amount = 0.00, total_paid_for_referrals = 0.00, monthly_paid_amount = 0.00, monthly_paid_for_referrals = 0.00");
                     $stmt->execute();
                     $success = "Все выплаты сброшены!";
                     break;
@@ -137,6 +137,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $error = "Ошибка подключения к боту: " . $result['error'];
                     }
                     break;
+                    
+                case 'archive_month':
+                    // Архивировать месячные выплаты
+                    if (isset($_POST['archive_month'])) {
+                        $month = $_POST['archive_month'];
+                        
+                        // Получаем всех пользователей с месячными данными
+                        $stmt = $pdo->prepare("
+                            SELECT id, monthly_paid_amount, monthly_paid_for_referrals 
+                            FROM users 
+                            WHERE payment_month = ? AND (monthly_paid_amount > 0 OR monthly_paid_for_referrals > 0)
+                        ");
+                        $stmt->execute([$month]);
+                        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                        
+                        $archived_count = 0;
+                        foreach ($users as $user) {
+                            // Сохраняем в архив
+                            $stmt = $pdo->prepare("
+                                INSERT INTO monthly_payments (user_id, payment_month, paid_amount, paid_for_referrals) 
+                                VALUES (?, ?, ?, ?)
+                                ON DUPLICATE KEY UPDATE 
+                                paid_amount = VALUES(paid_amount),
+                                paid_for_referrals = VALUES(paid_for_referrals)
+                            ");
+                            $stmt->execute([$user['id'], $month, $user['monthly_paid_amount'], $user['monthly_paid_for_referrals']]);
+                            
+                            // Обнуляем месячные данные
+                            $stmt = $pdo->prepare("
+                                UPDATE users 
+                                SET monthly_paid_amount = 0.00, monthly_paid_for_referrals = 0.00, payment_month = ?
+                                WHERE id = ?
+                            ");
+                            $stmt->execute([date('Y-m'), $user['id']]);
+                            
+                            $archived_count++;
+                        }
+                        
+                        $success = "Архивированы данные за {$month} для {$archived_count} пользователей. Месячные счетчики обнулены.";
+                    }
+                    break;
             }
         }
         
@@ -164,20 +205,20 @@ try {
     $stats['total_affiliates'] = $stmt->fetchColumn();
     
     // Общая сумма выплат
-    $stmt = $pdo->query("SELECT SUM(paid_amount) FROM users");
+    $stmt = $pdo->query("SELECT SUM(total_paid_amount) FROM users");
     $stats['total_paid'] = $stmt->fetchColumn() ?: 0;
     
     // Общая сумма выплат за рефералов
-    $stmt = $pdo->query("SELECT SUM(paid_for_referrals) FROM users");
+    $stmt = $pdo->query("SELECT SUM(total_paid_for_referrals) FROM users");
     $stats['total_paid_referrals'] = $stmt->fetchColumn() ?: 0;
     
     // Топ партнеров по количеству рефералов
     $stmt = $pdo->query("
-        SELECT u.full_name, u.paid_amount, u.paid_for_referrals,
+        SELECT u.full_name, u.total_paid_amount, u.total_paid_for_referrals,
                (SELECT COUNT(*) FROM users WHERE affiliate_id = u.id) as referral_count
         FROM users u 
         WHERE u.is_affiliate = 1 
-        ORDER BY referral_count DESC, u.paid_for_referrals DESC
+        ORDER BY referral_count DESC, u.total_paid_for_referrals DESC
         LIMIT 10
     ");
     $top_affiliates = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -308,8 +349,8 @@ require_once 'includes/header.php';
                         <tr>
                             <td><?= htmlspecialchars($affiliate['full_name']) ?></td>
                             <td><?= $affiliate['referral_count'] ?></td>
-                            <td class="mobile-hide"><?= number_format($affiliate['paid_amount'], 2, '.', ' ') ?> ₽</td>
-                            <td><?= number_format($affiliate['paid_for_referrals'], 2, '.', ' ') ?> ₽</td>
+                            <td class="mobile-hide"><?= number_format($affiliate['total_paid_amount'], 2, '.', ' ') ?> ₽</td>
+                            <td><?= number_format($affiliate['total_paid_for_referrals'], 2, '.', ' ') ?> ₽</td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -404,6 +445,46 @@ require_once 'includes/header.php';
                         Отправить фото
                     </button>
                 </form>
+            </div>
+        </div>
+        
+        <!-- Месячные отчеты -->
+        <div class="settings-card">
+            <h3>Месячные отчеты</h3>
+            <p>Управление месячными выплатами и генерация отчетов.</p>
+            
+            <!-- Архивирование месяца -->
+            <div class="form-section">
+                <h4>Архивирование месяца</h4>
+                <form method="POST" style="display: flex; gap: 10px; align-items: end; flex-wrap: wrap;">
+                    <input type="hidden" name="action" value="archive_month">
+                    <div class="form-group" style="margin: 0;">
+                        <label for="archive_month">Месяц для архивирования:</label>
+                        <input type="month" id="archive_month" name="archive_month" class="form-control" 
+                               value="<?= date('Y-m', strtotime('-1 month')) ?>" required style="width: auto;">
+                    </div>
+                    <button type="submit" class="btn btn-warning" 
+                            onclick="return confirm('Архивировать данные за выбранный месяц? Месячные счетчики будут обнулены.')">
+                        Архивировать месяц
+                    </button>
+                </form>
+                <small class="form-text text-muted">Сохраняет месячные выплаты в архив и обнуляет счетчики для нового месяца</small>
+            </div>
+            
+            <!-- Экспорт месячного отчета -->
+            <div class="form-section mt-3">
+                <h4>Экспорт месячного отчета в PDF</h4>
+                <form method="GET" action="monthly_report_pdf.php" style="display: flex; gap: 10px; align-items: end; flex-wrap: wrap;">
+                    <div class="form-group" style="margin: 0;">
+                        <label for="report_month">Месяц отчета:</label>
+                        <input type="month" id="report_month" name="month" class="form-control" 
+                               value="<?= date('Y-m') ?>" required style="width: auto;">
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        Скачать PDF отчет
+                    </button>
+                </form>
+                <small class="form-text text-muted">Генерирует PDF отчет с выплатами за выбранный месяц</small>
             </div>
         </div>
         

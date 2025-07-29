@@ -131,9 +131,8 @@ require_once 'includes/header.php';
                        id="bank_card" 
                        name="bank_card" 
                        required 
-                       pattern="\d{16,19}"
                        maxlength="19"
-                       placeholder="2202123456789012"
+                       placeholder="1234 5678 9012 3456"
                        value="<?= isset($user['bank_card']) && $user['bank_card'] ? htmlspecialchars(decryptData($user['bank_card'])) : '' ?>">
             </div>
 
@@ -211,30 +210,75 @@ require_once 'includes/header.php';
                 </select>
             </div>
 
-            <div class="form-group">
-                <label for="paid_amount">
-                    Выплаченно в рублях
+            <div class="form-group related-field">
+                <label for="total_paid_amount">
+                    Всего выплачено в рублях
+                    <small style="color: var(--text-secondary); font-weight: normal;">(обновляется автоматически)</small>
                 </label>
                 <input type="number" 
-                       id="paid_amount" 
-                       name="paid_amount" 
+                       id="total_paid_amount" 
+                       name="total_paid_amount" 
                        step="0.01" 
                        min="0"
                        placeholder="0.00"
-                       value="<?= isset($user['paid_amount']) ? htmlspecialchars($user['paid_amount']) : '0.00' ?>">
+                       value="<?= isset($user['total_paid_amount']) ? htmlspecialchars($user['total_paid_amount']) : '0.00' ?>">
+                <small class="form-text text-muted">Рассчитывается автоматически на основе архивных данных + текущий месяц</small>
+            </div>
+
+            <div class="form-group related-field">
+                <label for="total_paid_for_referrals">
+                    Всего выплачено за рефералов
+                    <small style="color: var(--text-secondary); font-weight: normal;">(обновляется автоматически)</small>
+                </label>
+                <input type="number" 
+                       id="total_paid_for_referrals" 
+                       name="total_paid_for_referrals" 
+                       step="0.01" 
+                       min="0"
+                       placeholder="0.00"
+                       value="<?= isset($user['total_paid_for_referrals']) ? htmlspecialchars($user['total_paid_for_referrals']) : '0.00' ?>">
+                <small class="form-text text-muted">Рассчитывается автоматически на основе архивных данных + текущий месяц</small>
             </div>
 
             <div class="form-group">
-                <label for="paid_for_referrals">
-                    Выплаченно за рефералов
+                <label for="payment_month">
+                    Месяц учета выплат
+                </label>
+                <input type="month" 
+                       id="payment_month" 
+                       name="payment_month" 
+                       value="<?= isset($user['payment_month']) ? htmlspecialchars($user['payment_month']) : date('Y-m') ?>">
+                <small class="form-text text-muted">Выберите месяц для учета текущих выплат</small>
+            </div>
+
+            <div class="form-group">
+                <label for="monthly_paid_amount">
+                    Выплачено в рублях за месяц
+                    <small style="color: var(--success-color); font-weight: normal;">(влияет на общую сумму)</small>
                 </label>
                 <input type="number" 
-                       id="paid_for_referrals" 
-                       name="paid_for_referrals" 
+                       id="monthly_paid_amount" 
+                       name="monthly_paid_amount" 
                        step="0.01" 
                        min="0"
                        placeholder="0.00"
-                       value="<?= isset($user['paid_for_referrals']) ? htmlspecialchars($user['paid_for_referrals']) : '0.00' ?>">
+                       value="<?= isset($user['monthly_paid_amount']) ? htmlspecialchars($user['monthly_paid_amount']) : '0.00' ?>">
+                <small class="form-text text-muted">При изменении автоматически обновится общая сумма выплат</small>
+            </div>
+
+            <div class="form-group">
+                <label for="monthly_paid_for_referrals">
+                    Выплачено за рефералов за месяц
+                    <small style="color: var(--success-color); font-weight: normal;">(влияет на общую сумму)</small>
+                </label>
+                <input type="number" 
+                       id="monthly_paid_for_referrals" 
+                       name="monthly_paid_for_referrals" 
+                       step="0.01" 
+                       min="0"
+                       placeholder="0.00"
+                       value="<?= isset($user['monthly_paid_for_referrals']) ? htmlspecialchars($user['monthly_paid_for_referrals']) : '0.00' ?>">
+                <small class="form-text text-muted">При изменении автоматически обновится общая сумма за рефералов</small>
             </div>
 
             <?php if (isset($user['id'])): ?>
@@ -308,6 +352,134 @@ require_once 'includes/header.php';
             alert('Пожалуйста, введите корректную дату рождения. Возраст должен быть от 18 до 100 лет.');
             e.preventDefault();
             return;
+        }
+    });
+
+    // Форматирование номера карты
+    document.getElementById('bank_card').addEventListener('input', function() {
+        let value = this.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+        let formattedValue = '';
+        
+        for (let i = 0; i < value.length; i++) {
+            if (i > 0 && i % 4 === 0) {
+                formattedValue += ' ';
+            }
+            formattedValue += value[i];
+        }
+        
+        this.value = formattedValue;
+    });
+
+    // Автоматическое обновление общих сумм при изменении месячных данных
+    function updateTotalAmounts() {
+        const monthlyAmount = parseFloat(document.getElementById('monthly_paid_amount').value) || 0;
+        const monthlyReferrals = parseFloat(document.getElementById('monthly_paid_for_referrals').value) || 0;
+        const totalAmountField = document.getElementById('total_paid_amount');
+        const totalReferralsField = document.getElementById('total_paid_for_referrals');
+        
+        // Получаем текущие значения
+        const currentTotalAmount = parseFloat(totalAmountField.value) || 0;
+        const currentTotalReferrals = parseFloat(totalReferralsField.value) || 0;
+        
+        // Обновляем только если месячное значение больше 0 или общая сумма равна 0
+        if (monthlyAmount > 0 || currentTotalAmount === 0) {
+            // Если общая сумма меньше месячной или равна 0, устанавливаем минимум = месячной
+            const newTotalAmount = Math.max(currentTotalAmount, monthlyAmount);
+            if (newTotalAmount !== currentTotalAmount) {
+                totalAmountField.value = newTotalAmount.toFixed(2);
+                totalAmountField.style.backgroundColor = '#e8f5e8'; // Легкий зеленый фон для индикации обновления
+                
+                // Показываем уведомление
+                showUpdateNotification(totalAmountField, `Обновлено: ${currentTotalAmount.toFixed(2)} → ${newTotalAmount.toFixed(2)}`);
+            }
+        }
+        
+        if (monthlyReferrals > 0 || currentTotalReferrals === 0) {
+            const newTotalReferrals = Math.max(currentTotalReferrals, monthlyReferrals);
+            if (newTotalReferrals !== currentTotalReferrals) {
+                totalReferralsField.value = newTotalReferrals.toFixed(2);
+                totalReferralsField.style.backgroundColor = '#e8f5e8';
+                
+                showUpdateNotification(totalReferralsField, `Обновлено: ${currentTotalReferrals.toFixed(2)} → ${newTotalReferrals.toFixed(2)}`);
+            }
+        }
+        
+        // Убираем цветовую индикацию через 3 секунды
+        setTimeout(() => {
+            totalAmountField.style.backgroundColor = '';
+            totalReferralsField.style.backgroundColor = '';
+        }, 3000);
+    }
+    
+    // Функция для показа уведомления об обновлении
+    function showUpdateNotification(element, message) {
+        const notification = document.createElement('div');
+        notification.className = 'update-notification';
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: absolute;
+            background: var(--success-color);
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            z-index: 1000;
+            top: -40px;
+            right: 0;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            animation: notification-slide-in 0.3s ease;
+        `;
+        
+        element.parentNode.style.position = 'relative';
+        element.parentNode.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 4000);
+    }
+
+    // Слушатели событий для месячных полей
+    document.getElementById('monthly_paid_amount').addEventListener('input', updateTotalAmounts);
+    document.getElementById('monthly_paid_for_referrals').addEventListener('input', updateTotalAmounts);
+    
+    // Функция для показа подсказки
+    function showTooltip(element, message) {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tooltip-auto-update';
+        tooltip.textContent = message;
+        tooltip.style.cssText = `
+            position: absolute;
+            background: var(--primary-color);
+            color: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            z-index: 1000;
+            top: -30px;
+            left: 0;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        `;
+        
+        element.style.position = 'relative';
+        element.appendChild(tooltip);
+        
+        setTimeout(() => {
+            if (tooltip.parentNode) {
+                tooltip.remove();
+            }
+        }, 3000);
+    }
+    
+    // Добавляем подсказки при первом фокусе на месячные поля
+    let tooltipShown = false;
+    document.getElementById('monthly_paid_amount').addEventListener('focus', function() {
+        if (!tooltipShown) {
+            showTooltip(this.parentNode, 'Общие суммы обновятся автоматически');
+            tooltipShown = true;
         }
     });
 </script>

@@ -96,7 +96,7 @@ function getReferralsByLevels($pdo, $userId, $maxLevel = 3) {
     
     // Получаем рефералов 1 уровня
     $stmt = $pdo->prepare("
-        SELECT id, full_name, paid_amount 
+        SELECT id, full_name, total_paid_amount 
         FROM users 
         WHERE affiliate_id = ? AND is_affiliate = 0
     ");
@@ -109,7 +109,7 @@ function getReferralsByLevels($pdo, $userId, $maxLevel = 3) {
         $level2 = [];
         foreach ($level1 as $ref1) {
             $stmt = $pdo->prepare("
-                SELECT id, full_name, paid_amount 
+                SELECT id, full_name, total_paid_amount 
                 FROM users 
                 WHERE affiliate_id = ? AND is_affiliate = 0
             ");
@@ -124,7 +124,7 @@ function getReferralsByLevels($pdo, $userId, $maxLevel = 3) {
         $level3 = [];
         foreach ($referrals[2] as $ref2) {
             $stmt = $pdo->prepare("
-                SELECT id, full_name, paid_amount 
+                SELECT id, full_name, total_paid_amount 
                 FROM users 
                 WHERE affiliate_id = ? AND is_affiliate = 0
             ");
@@ -155,7 +155,7 @@ function calculateReferralEarnings($pdo, $userId) {
     if (isset($referrals[1])) {
         foreach ($referrals[1] as $referral) {
             $percent = isset($settings['level_1_percent']) ? $settings['level_1_percent'] : 50.00;
-            $earnings['level_1'] += $referral['paid_amount'] * ($percent / 100);
+            $earnings['level_1'] += $referral['total_paid_amount'] * ($percent / 100);
         }
     }
     
@@ -163,7 +163,7 @@ function calculateReferralEarnings($pdo, $userId) {
     if (isset($referrals[2])) {
         foreach ($referrals[2] as $referral) {
             $percent = isset($settings['level_2_percent']) ? $settings['level_2_percent'] : 25.00;
-            $earnings['level_2'] += $referral['paid_amount'] * ($percent / 100);
+            $earnings['level_2'] += $referral['total_paid_amount'] * ($percent / 100);
         }
     }
     
@@ -171,7 +171,7 @@ function calculateReferralEarnings($pdo, $userId) {
     if (isset($referrals[3])) {
         foreach ($referrals[3] as $referral) {
             $percent = isset($settings['level_3_percent']) ? $settings['level_3_percent'] : 10.00;
-            $earnings['level_3'] += $referral['paid_amount'] * ($percent / 100);
+            $earnings['level_3'] += $referral['total_paid_amount'] * ($percent / 100);
         }
     }
     
@@ -193,11 +193,11 @@ function getReferralDetails($pdo, $userId) {
     if (isset($referrals[1])) {
         foreach ($referrals[1] as $referral) {
             $percent = isset($settings['level_1_percent']) ? $settings['level_1_percent'] : 50.00;
-            $earning = $referral['paid_amount'] * ($percent / 100);
+            $earning = $referral['total_paid_amount'] * ($percent / 100);
             $details[] = [
                 'level' => 1,
                 'name' => $referral['full_name'],
-                'paid_amount' => $referral['paid_amount'],
+                'paid_amount' => $referral['total_paid_amount'],
                 'earning' => $earning,
                 'percent' => $percent
             ];
@@ -208,11 +208,11 @@ function getReferralDetails($pdo, $userId) {
     if (isset($referrals[2])) {
         foreach ($referrals[2] as $referral) {
             $percent = isset($settings['level_2_percent']) ? $settings['level_2_percent'] : 25.00;
-            $earning = $referral['paid_amount'] * ($percent / 100);
+            $earning = $referral['total_paid_amount'] * ($percent / 100);
             $details[] = [
                 'level' => 2,
                 'name' => $referral['full_name'],
-                'paid_amount' => $referral['paid_amount'],
+                'paid_amount' => $referral['total_paid_amount'],
                 'earning' => $earning,
                 'percent' => $percent
             ];
@@ -223,11 +223,11 @@ function getReferralDetails($pdo, $userId) {
     if (isset($referrals[3])) {
         foreach ($referrals[3] as $referral) {
             $percent = isset($settings['level_3_percent']) ? $settings['level_3_percent'] : 10.00;
-            $earning = $referral['paid_amount'] * ($percent / 100);
+            $earning = $referral['total_paid_amount'] * ($percent / 100);
             $details[] = [
                 'level' => 3,
                 'name' => $referral['full_name'],
-                'paid_amount' => $referral['paid_amount'],
+                'paid_amount' => $referral['total_paid_amount'],
                 'earning' => $earning,
                 'percent' => $percent
             ];
@@ -270,14 +270,14 @@ function updateReferralSettings($pdo, $level1, $level2, $level3) {
 }
 
 /**
- * Автоматическое обновление выплат партнерам при изменении paid_amount реферала
+ * Автоматическое обновление выплат партнерам при изменении total_paid_amount реферала
  */
 function updateAffiliatePayments($pdo, $userId) {
     try {
         $settings = getReferralSettings($pdo);
         
         // Получаем информацию о пользователе
-        $stmt = $pdo->prepare("SELECT id, affiliate_id, paid_amount FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT id, affiliate_id, total_paid_amount FROM users WHERE id = ?");
         $stmt->execute([$userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -313,7 +313,7 @@ function updateAffiliatePayments($pdo, $userId) {
             $percent = isset($settings[$percentKey]) ? $settings[$percentKey] : 0;
             
             // Рассчитываем выплату для этого партнера от данного реферала
-            $earning = $user['paid_amount'] * ($percent / 100);
+            $earning = $user['total_paid_amount'] * ($percent / 100);
             
             // Обновляем выплату партнера
             updateAffiliateEarning($pdo, $affiliate['id'], $earning, $userId, $affiliate['level']);
@@ -368,7 +368,7 @@ function updateAffiliateEarning($pdo, $affiliateId, $earning, $referralId, $leve
         // Пересчитываем общую сумму выплат за рефералов для партнера
         $stmt = $pdo->prepare("
             UPDATE users 
-            SET paid_for_referrals = (
+            SET total_paid_for_referrals = (
                 SELECT COALESCE(SUM(earning), 0) 
                 FROM referral_earnings 
                 WHERE affiliate_id = ?
@@ -399,10 +399,10 @@ function recalculateAllReferralPayments($pdo) {
         $pdo->exec("DELETE FROM referral_earnings");
         
         // Сбрасываем все выплаты за рефералов
-        $pdo->exec("UPDATE users SET paid_for_referrals = 0.00");
+        $pdo->exec("UPDATE users SET total_paid_for_referrals = 0.00");
         
-        // Получаем всех пользователей с paid_amount > 0
-        $stmt = $pdo->query("SELECT id FROM users WHERE paid_amount > 0");
+        // Получаем всех пользователей с total_paid_amount > 0
+        $stmt = $pdo->query("SELECT id FROM users WHERE total_paid_amount > 0");
         $users = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
         // Пересчитываем выплаты для каждого пользователя

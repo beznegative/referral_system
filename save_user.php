@@ -70,8 +70,11 @@ try {
         $total_paid_for_referrals = $input_total_paid_for_referrals ?? $monthly_paid_for_referrals;
     }
 
-    // Шифруем банковскую карту
-    $encrypted_bank_card = encryptData($_POST['bank_card']);
+    // Шифруем банковскую карту (если она заполнена)
+    $encrypted_bank_card = '';
+    if (!empty($_POST['bank_card'])) {
+        $encrypted_bank_card = encryptData($_POST['bank_card']);
+    }
 
     if ($id) {
         // Получаем старые значения для сравнения
@@ -114,7 +117,7 @@ try {
         
         $stmt->execute([
             $_POST['full_name'],
-            $encrypted_bank_card,
+            $encrypted_bank_card ?: null, // Если пустая строка, то NULL
             $_POST['telegram_username'],
             $telegram_id,
             $_POST['phone_number'],
@@ -146,7 +149,7 @@ try {
         
         $stmt->execute([
             $_POST['full_name'],
-            $encrypted_bank_card,
+            $encrypted_bank_card ?: null, // Если пустая строка, то NULL
             $_POST['telegram_username'],
             $telegram_id,
             $_POST['phone_number'],

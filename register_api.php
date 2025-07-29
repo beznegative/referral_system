@@ -64,10 +64,8 @@ function validateRegistrationData($data) {
         $errors[] = 'ФИО должно содержать минимум 2 символа';
     }
     
-    // Проверка банковской карты (смягченная проверка)
-    if (empty($data['bank_card'])) {
-        $errors[] = 'Номер банковской карты обязателен';
-    } else {
+    // Проверка банковской карты (необязательное поле)
+    if (!empty($data['bank_card'])) {
         $cardNumber = preg_replace('/\s+/', '', $data['bank_card']);
         $cardDigits = preg_replace('/[^0-9]/', '', $cardNumber);
         if (strlen($cardDigits) < 13 || strlen($cardDigits) > 19) {
@@ -174,11 +172,14 @@ try {
         }
     }
     
-    // Шифруем банковскую карту
-    $encryptedBankCard = encryptData($data['bank_card']);
-    if (empty($encryptedBankCard)) {
-        $pdo->rollBack();
-        sendResponse(['success' => false, 'message' => 'Ошибка шифрования данных'], 500);
+    // Шифруем банковскую карту (если она заполнена)
+    $encryptedBankCard = '';
+    if (!empty($data['bank_card'])) {
+        $encryptedBankCard = encryptData($data['bank_card']);
+        if (empty($encryptedBankCard)) {
+            $pdo->rollBack();
+            sendResponse(['success' => false, 'message' => 'Ошибка шифрования данных'], 500);
+        }
     }
     
     // Создаем нового пользователя
@@ -192,7 +193,7 @@ try {
     
     $stmt->execute([
         $data['full_name'],
-        $encryptedBankCard,
+        $encryptedBankCard ?: null, // Если пустая строка, то NULL
         $data['telegram_username'],
         $data['telegram_id'],
         $data['phone_number'],

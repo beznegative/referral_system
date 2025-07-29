@@ -302,9 +302,9 @@ requireCaptcha('miniapp');
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="bank_card">Номер банковской карты <span class="required">*</span></label>
+                        <label class="form-label" for="bank_card">Номер банковской карты</label>
                         <input type="text" class="form-control" id="bank_card" name="bank_card" 
-                               placeholder="2200 1234 5678 9012" maxlength="19" required>
+                               placeholder="2200 1234 5678 9012" maxlength="19">
                     </div>
 
                     <div class="form-group">

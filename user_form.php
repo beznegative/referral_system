@@ -125,12 +125,10 @@ require_once 'includes/header.php';
             <div class="form-group">
                 <label for="bank_card">
                     Номер банковской карты
-                    <span class="required">*</span>
                 </label>
                 <input type="text" 
                        id="bank_card" 
                        name="bank_card" 
-                       required 
                        maxlength="19"
                        placeholder="1234 5678 9012 3456"
                        value="<?= isset($user['bank_card']) && $user['bank_card'] ? htmlspecialchars(decryptData($user['bank_card'])) : '' ?>">

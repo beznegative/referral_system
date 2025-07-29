@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Хост: 127.0.0.1
--- Время создания: Июл 15 2025 г., 18:32
+-- Время создания: Июл 29 2025 г., 21:14
 -- Версия сервера: 10.4.32-MariaDB
 -- Версия PHP: 8.0.30
 
@@ -81,6 +81,34 @@ INSERT INTO `bookmakers` (`id`, `name`, `code`, `created_at`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Структура таблицы `monthly_payments`
+--
+
+CREATE TABLE `monthly_payments` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `payment_month` varchar(7) NOT NULL COMMENT 'Месяц в формате YYYY-MM',
+  `paid_amount` decimal(10,2) DEFAULT 0.00 COMMENT 'Выплачено в рублях за месяц',
+  `paid_for_referrals` decimal(10,2) DEFAULT 0.00 COMMENT 'Выплачено за рефералов за месяц',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Дамп данных таблицы `monthly_payments`
+--
+
+INSERT INTO `monthly_payments` (`id`, `user_id`, `payment_month`, `paid_amount`, `paid_for_referrals`, `created_at`, `updated_at`) VALUES
+(2, 29, '2025-07', 5000.00, 0.00, '2025-07-29 17:53:53', '2025-07-29 17:53:53'),
+(3, 30, '2025-07', 3000.00, 0.00, '2025-07-29 17:55:06', '2025-07-29 17:55:06'),
+(4, 31, '2025-07', 3000.00, 0.00, '2025-07-29 17:55:18', '2025-07-29 17:55:18'),
+(5, 29, '2025-06', 5000.00, 0.00, '2025-07-29 17:56:30', '2025-07-29 17:56:30'),
+(6, 30, '2025-06', 3000.00, 0.00, '2025-07-29 17:56:30', '2025-07-29 17:56:30'),
+(7, 31, '2025-06', 3000.00, 0.00, '2025-07-29 17:56:30', '2025-07-29 17:56:30');
+
+-- --------------------------------------------------------
+
+--
 -- Структура таблицы `referral_earnings`
 --
 
@@ -99,12 +127,12 @@ CREATE TABLE `referral_earnings` (
 --
 
 INSERT INTO `referral_earnings` (`id`, `affiliate_id`, `referral_id`, `level`, `earning`, `created_at`, `updated_at`) VALUES
-(42, 24, 29, 1, 2500.00, '2025-07-15 13:10:58', '2025-07-15 13:15:31'),
-(43, 29, 30, 1, 1250.00, '2025-07-15 13:10:58', '2025-07-15 13:15:53'),
-(44, 24, 30, 2, 625.00, '2025-07-15 13:10:58', '2025-07-15 13:15:53'),
-(45, 30, 31, 1, 500.00, '2025-07-15 13:10:58', '2025-07-15 13:10:58'),
-(46, 29, 31, 2, 250.00, '2025-07-15 13:10:58', '2025-07-15 13:10:58'),
-(47, 24, 31, 3, 100.00, '2025-07-15 13:10:58', '2025-07-15 13:10:58');
+(68, 24, 29, 1, 2000.00, '2025-07-29 19:13:57', '2025-07-29 19:13:57'),
+(69, 29, 30, 1, 1200.00, '2025-07-29 19:13:57', '2025-07-29 19:13:57'),
+(70, 24, 30, 2, 750.00, '2025-07-29 19:13:57', '2025-07-29 19:13:57'),
+(71, 30, 31, 1, 800.00, '2025-07-29 19:13:57', '2025-07-29 19:13:57'),
+(72, 29, 31, 2, 500.00, '2025-07-29 19:13:57', '2025-07-29 19:13:57'),
+(73, 24, 31, 3, 200.00, '2025-07-29 19:13:57', '2025-07-29 19:13:57');
 
 -- --------------------------------------------------------
 
@@ -126,7 +154,7 @@ CREATE TABLE `referral_settings` (
 --
 
 INSERT INTO `referral_settings` (`id`, `setting_name`, `setting_value`, `description`, `created_at`, `updated_at`) VALUES
-(7, 'level_1_percent', 50.00, 'Процент для рефералов 1 уровня', '2025-07-15 12:35:48', '2025-07-15 12:35:48'),
+(7, 'level_1_percent', 40.00, 'Процент для рефералов 1 уровня', '2025-07-15 12:35:48', '2025-07-29 19:13:47'),
 (8, 'level_2_percent', 25.00, 'Процент для рефералов 2 уровня', '2025-07-15 12:35:48', '2025-07-15 12:35:48'),
 (9, 'level_3_percent', 10.00, 'Процент для рефералов 3 уровня', '2025-07-15 12:35:48', '2025-07-15 12:35:48');
 
@@ -139,7 +167,7 @@ INSERT INTO `referral_settings` (`id`, `setting_name`, `setting_value`, `descrip
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
   `full_name` varchar(255) NOT NULL,
-  `bank_card` text NOT NULL,
+  `bank_card` text DEFAULT NULL COMMENT 'Зашифрованный номер банковской карты (необязательное поле)',
   `telegram_username` varchar(255) NOT NULL,
   `telegram_id` bigint(20) DEFAULT NULL,
   `phone_number` varchar(20) NOT NULL,
@@ -147,21 +175,23 @@ CREATE TABLE `users` (
   `is_affiliate` tinyint(1) DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `affiliate_id` int(11) DEFAULT NULL,
-  `paid_amount` decimal(10,2) DEFAULT 0.00 COMMENT 'Выплаченно в рублях',
+  `total_paid_amount` decimal(10,2) DEFAULT 0.00 COMMENT 'Всего выплачено в рублях',
   `referral_count` int(11) DEFAULT 0 COMMENT 'Количество рефералов',
-  `paid_for_referrals` decimal(10,2) DEFAULT 0.00 COMMENT 'Выплаченно за рефералов'
+  `total_paid_for_referrals` decimal(10,2) DEFAULT 0.00 COMMENT 'Всего выплачено за рефералов',
+  `monthly_paid_amount` decimal(10,2) DEFAULT 0.00 COMMENT 'Выплачено в рублях за текущий месяц',
+  `monthly_paid_for_referrals` decimal(10,2) DEFAULT 0.00 COMMENT 'Выплачено за рефералов за текущий месяц',
+  `payment_month` varchar(7) DEFAULT NULL COMMENT 'Месяц выплат в формате YYYY-MM'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Дамп данных таблицы `users`
 --
 
-INSERT INTO `users` (`id`, `full_name`, `bank_card`, `telegram_username`, `telegram_id`, `phone_number`, `birth_date`, `is_affiliate`, `created_at`, `affiliate_id`, `paid_amount`, `referral_count`, `paid_for_referrals`) VALUES
-(24, 'Сергей Партнеров', 'IdVGqsBa50mnFVdNMJoLgKDehTBxLbUYJqFcgyOZUEmoFB2/Wvr3H7fk521X8DJ7', '@sergey_partner', 430892673, '88005553535', '1985-03-15', 1, '2025-07-15 12:30:14', NULL, 10000.00, 1, 3225.00),
-(29, 'Андрей Иванов', '1OMcUmADyg47fJtZYAiXj3V1wU+eTbuOtmhkwIXAKZe0kN1raR/Ib17T0SuS1JDy', '@andrey_ivanov', 222222222, '88005554545', '1990-05-20', 0, '2025-07-15 12:32:04', 24, 5000.00, 0, 1500.00),
-(30, 'Мария Петрова', '7o3i4XpuqEeqbg7eJtnKNstzvVJXNE7mx2sr9qcZRu4A6DtapEK+EFZGpPuOKcYR', '@maria_petrova', 333333333, '88005557575', '1992-08-10', 0, '2025-07-15 12:32:04', 29, 2500.00, 0, 500.00),
-(31, 'Дмитрий Сидоров', 'X9M+5nX40P3aFhVeaNhh3XHKryw9oeWTS+JxruljZT5pd59bVzsEw3y7WMjY981D', '@dmitry_sidorov', 444444444, '88004443535', '1988-12-25', 0, '2025-07-15 12:32:04', 30, 1000.00, 0, 0.00),
-(32, 'Петр Петров', 'ls8+97Y9D3MKNfIEnrwULGzzJjydazQ9ARbV5XJ0azPwfw6stLuAu7GrePDoys7Q', '@petr_petrov', 987654321, '89057654321', '1985-05-15', 1, '2025-07-15 13:07:44', NULL, 0.00, 0, 0.00);
+INSERT INTO `users` (`id`, `full_name`, `bank_card`, `telegram_username`, `telegram_id`, `phone_number`, `birth_date`, `is_affiliate`, `created_at`, `affiliate_id`, `total_paid_amount`, `referral_count`, `total_paid_for_referrals`, `monthly_paid_amount`, `monthly_paid_for_referrals`, `payment_month`) VALUES
+(24, 'Админ', 'tfZ1rG4JLwLGoIka6YKT4+Ynirlzssst9COOanP03C7QPrUiK/uA7JHQXrABz4JT', '@sergey_partner', 430892673, '88005553535', '1985-03-15', 1, '2025-07-15 12:30:14', NULL, 0.00, 1, 2950.00, 0.00, 0.00, '2025-07'),
+(29, 'Первый', '4wQj2mTNWNG9YW5TkaA0E4j1Ggq0PPHzeLRwOLP+uVCdHo6zG22DF+NNrTWp7izH', '@andrey_ivanov', 222222222, '88005554545', '1990-05-20', 0, '2025-07-15 12:32:04', 24, 5000.00, 2, 1700.00, 5000.00, 0.00, '2025-07'),
+(30, 'Второй', 'gJHLbmNXoNim8TZaBDpXEiADXaSi+EjaRvVAKZOMS4wSYSZzcfL1IJ4kJ5AT9Bri', '@maria_petrova', 333333333, '88005557575', '1992-08-10', 0, '2025-07-15 12:32:04', 29, 3000.00, 0, 800.00, 3000.00, 0.00, '2025-07'),
+(31, 'Третий', 'QLD6wiJnBw3huGw+2eZ1g89Wz1pyzaYnr5aWRch0/8BZAwlj5lV6NO//S6KPjsjD', '@dmitry_sidorov', 444444444, '88004443535', '1988-12-25', 0, '2025-07-15 12:32:04', 30, 2000.00, 0, 0.00, 2000.00, 0.00, '2025-07');
 
 -- --------------------------------------------------------
 
@@ -180,18 +210,16 @@ CREATE TABLE `user_bookmakers` (
 --
 
 INSERT INTO `user_bookmakers` (`user_id`, `bookmaker_id`, `created_at`) VALUES
-(24, 3, '2025-07-15 13:50:22'),
-(29, 5, '2025-07-15 13:15:31'),
-(29, 6, '2025-07-15 13:15:31'),
-(29, 8, '2025-07-15 13:15:31'),
-(30, 2, '2025-07-15 13:15:53'),
-(30, 7, '2025-07-15 13:15:53'),
-(30, 11, '2025-07-15 13:15:53'),
-(31, 4, '2025-07-15 13:00:15'),
-(31, 7, '2025-07-15 13:00:15'),
-(31, 12, '2025-07-15 13:00:15'),
-(32, 3, '2025-07-15 13:33:23'),
-(32, 4, '2025-07-15 13:33:23');
+(24, 3, '2025-07-29 17:52:54'),
+(29, 5, '2025-07-29 18:17:09'),
+(29, 6, '2025-07-29 18:17:09'),
+(29, 8, '2025-07-29 18:17:09'),
+(30, 2, '2025-07-29 18:14:58'),
+(30, 7, '2025-07-29 18:14:58'),
+(30, 11, '2025-07-29 18:14:58'),
+(31, 4, '2025-07-29 18:15:04'),
+(31, 7, '2025-07-29 18:15:04'),
+(31, 12, '2025-07-29 18:15:04');
 
 --
 -- Индексы сохранённых таблиц
@@ -210,6 +238,13 @@ ALTER TABLE `api_tokens`
 ALTER TABLE `bookmakers`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `code` (`code`);
+
+--
+-- Индексы таблицы `monthly_payments`
+--
+ALTER TABLE `monthly_payments`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `user_month` (`user_id`,`payment_month`);
 
 --
 -- Индексы таблицы `referral_earnings`
@@ -257,10 +292,16 @@ ALTER TABLE `bookmakers`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
+-- AUTO_INCREMENT для таблицы `monthly_payments`
+--
+ALTER TABLE `monthly_payments`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+
+--
 -- AUTO_INCREMENT для таблицы `referral_earnings`
 --
 ALTER TABLE `referral_earnings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=54;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=74;
 
 --
 -- AUTO_INCREMENT для таблицы `referral_settings`
@@ -272,11 +313,17 @@ ALTER TABLE `referral_settings`
 -- AUTO_INCREMENT для таблицы `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- Ограничения внешнего ключа сохраненных таблиц
 --
+
+--
+-- Ограничения внешнего ключа таблицы `monthly_payments`
+--
+ALTER TABLE `monthly_payments`
+  ADD CONSTRAINT `monthly_payments_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Ограничения внешнего ключа таблицы `referral_earnings`
@@ -301,4 +348,4 @@ COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */; 
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

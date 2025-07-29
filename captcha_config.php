@@ -8,8 +8,8 @@ define('CAPTCHA_TYPE', 'simple'); // Можно изменить на 'simple' �
 
 // Настройки Google reCAPTCHA v2
 // Ваши реальные ключи от Google reCAPTCHA
-define('RECAPTCHA_SITE_KEY', '6LdGh5MrAAAAANG9YxCxFUfyIUI1jJhOFvnOsD1E'); // Ваш Site Key
-define('RECAPTCHA_SECRET_KEY', '6LdGh5MrAAAAAEgXAVNJfAObVqbCqeEYzV4VwFTv'); // Ваш Secret Key
+define('RECAPTCHA_SITE_KEY', ''); // Ваш Site Key
+define('RECAPTCHA_SECRET_KEY', ''); // Ваш Secret Key
 
 // Настройки простой капчи
 define('SIMPLE_CAPTCHA_ENABLED', true);

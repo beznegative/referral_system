@@ -2,27 +2,55 @@
 require_once 'includes/database.php';
 require_once 'referral_calculator.php';
 
+// Проверяем метод запроса
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: index.php?error=' . urlencode('Недопустимый метод запроса'));
+    exit;
+}
+
+// Проверяем, что данные формы получены
+if (empty($_POST)) {
+    header('Location: index.php?error=' . urlencode('Данные формы не получены'));
+    exit;
+}
+
+// Проверяем обязательные поля
+if (empty($_POST['full_name']) || empty($_POST['telegram_username'])) {
+    header('Location: user_form.php' . (isset($_POST['id']) ? '?id=' . $_POST['id'] : '') . 
+           '&error=' . urlencode('Заполните все обязательные поля'));
+    exit;
+}
+
 try {
     $pdo->beginTransaction();
 
-    $id = isset($_POST['id']) ? $_POST['id'] : null;
+    // Получаем и валидируем основные данные
+    $id = isset($_POST['id']) && !empty($_POST['id']) ? intval($_POST['id']) : null;
+    $full_name = trim($_POST['full_name'] ?? '');
+    $telegram_username = trim($_POST['telegram_username'] ?? '');
+    $telegram_id = !empty($_POST['telegram_id']) ? trim($_POST['telegram_id']) : null;
     $is_affiliate = isset($_POST['is_affiliate']) ? 1 : 0;
-    $affiliate_id = !empty($_POST['affiliate_id']) ? $_POST['affiliate_id'] : null;
+    $affiliate_id = !empty($_POST['affiliate_id']) ? intval($_POST['affiliate_id']) : null;
     $monthly_paid_amount = !empty($_POST['monthly_paid_amount']) ? floatval($_POST['monthly_paid_amount']) : 0.00;
     $monthly_paid_for_referrals = !empty($_POST['monthly_paid_for_referrals']) ? floatval($_POST['monthly_paid_for_referrals']) : 0.00;
-    $payment_month = !empty($_POST['payment_month']) ? $_POST['payment_month'] : date('Y-m');
-    $telegram_id = !empty($_POST['telegram_id']) ? $_POST['telegram_id'] : null;
-
-    // Получаем введенные общие суммы (если есть)
-    $input_total_paid_amount = !empty($_POST['total_paid_amount']) ? floatval($_POST['total_paid_amount']) : null;
-    $input_total_paid_for_referrals = !empty($_POST['total_paid_for_referrals']) ? floatval($_POST['total_paid_for_referrals']) : null;
+    $payment_month = !empty($_POST['payment_month_combined']) ? $_POST['payment_month_combined'] : 
+                     (!empty($_POST['payment_month']) ? $_POST['payment_month'] : date('Y-m'));
     
-    // Автоматический расчет общих сумм на основе месячных данных и архивных данных
-    $total_paid_amount = 0.00;
-    $total_paid_for_referrals = 0.00;
+    // Дополнительная валидация обязательных полей
+    if (empty($full_name)) {
+        throw new Exception('Поле "ФИО" обязательно для заполнения');
+    }
+    if (empty($telegram_username)) {
+        throw new Exception('Поле "Имя пользователя Telegram" обязательно для заполнения');
+    }
+
+    // Автоматический расчет общих сумм на основе данных из monthly_payments + текущий месяц
+    // Поля total_paid_amount и total_paid_for_referrals всегда рассчитываются автоматически
+    $total_paid_amount = $monthly_paid_amount;
+    $total_paid_for_referrals = $monthly_paid_for_referrals;
     
     if ($id) {
-        // Для существующего пользователя: суммируем архивные данные + текущий месяц
+        // Для существующего пользователя: суммируем все месяцы кроме текущего + текущий месяц
         $stmt = $pdo->prepare("
             SELECT 
                 COALESCE(SUM(paid_amount), 0) as archived_amount,
@@ -35,18 +63,6 @@ try {
         
         $total_paid_amount = floatval($archived['archived_amount']) + $monthly_paid_amount;
         $total_paid_for_referrals = floatval($archived['archived_referrals']) + $monthly_paid_for_referrals;
-        
-        // Если пользователь вручную ввел общие суммы, используем их (для случаев корректировки)
-        if ($input_total_paid_amount !== null) {
-            $total_paid_amount = $input_total_paid_amount;
-        }
-        if ($input_total_paid_for_referrals !== null) {
-            $total_paid_for_referrals = $input_total_paid_for_referrals;
-        }
-    } else {
-        // Для нового пользователя: используем месячные данные или введенные общие суммы
-        $total_paid_amount = $input_total_paid_amount ?? $monthly_paid_amount;
-        $total_paid_for_referrals = $input_total_paid_for_referrals ?? $monthly_paid_for_referrals;
     }
 
 
@@ -59,17 +75,23 @@ try {
         $old_total_paid_amount = $old_data['total_paid_amount'] ?? 0;
         $old_payment_month = $old_data['payment_month'] ?? null;
         
-        // Если месяц изменился, сохраняем предыдущие месячные данные в историю
-        if ($old_payment_month && $old_payment_month !== $payment_month) {
-            $stmt = $pdo->prepare("
-                INSERT INTO monthly_payments (user_id, payment_month, paid_amount, paid_for_referrals) 
-                VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE 
-                paid_amount = VALUES(paid_amount),
-                paid_for_referrals = VALUES(paid_for_referrals)
-            ");
-            $stmt->execute([$id, $old_payment_month, $monthly_paid_amount, $monthly_paid_for_referrals]);
-        }
+        // Всегда сохраняем/обновляем данные в monthly_payments для текущего месяца
+        $stmt = $pdo->prepare("
+            INSERT INTO monthly_payments (user_id, payment_month, paid_amount, paid_for_referrals) 
+            VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+            paid_amount = VALUES(paid_amount),
+            paid_for_referrals = VALUES(paid_for_referrals)
+        ");
+        $stmt->execute([
+            $id, 
+            $payment_month, 
+            $monthly_paid_amount,
+            $monthly_paid_for_referrals
+        ]);
+        
+        // Обновляем месячные выплаты за рефералов для всех партнёров за этот месяц
+        updateMonthlyAffiliatePayments($pdo, $payment_month);
         
         // Обновление существующего пользователя
         $stmt = $pdo->prepare("
@@ -88,8 +110,8 @@ try {
         ");
         
         $stmt->execute([
-            $_POST['full_name'],
-            $_POST['telegram_username'],
+            $full_name,
+            $telegram_username,
             $telegram_id,
             $is_affiliate,
             $affiliate_id,
@@ -117,8 +139,8 @@ try {
         ");
         
         $stmt->execute([
-            $_POST['full_name'],
-            $_POST['telegram_username'],
+            $full_name,
+            $telegram_username,
             $telegram_id,
             $is_affiliate,
             $affiliate_id,
@@ -130,6 +152,23 @@ try {
         ]);
 
         $id = $pdo->lastInsertId();
+        
+        // Сохраняем данные в monthly_payments для нового пользователя
+        if ($monthly_paid_amount > 0 || $monthly_paid_for_referrals > 0) {
+            $stmt = $pdo->prepare("
+                INSERT INTO monthly_payments (user_id, payment_month, paid_amount, paid_for_referrals) 
+                VALUES (?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $id, 
+                $payment_month, 
+                $monthly_paid_amount,
+                $monthly_paid_for_referrals
+            ]);
+            
+            // Обновляем месячные выплаты за рефералов для всех партнёров за этот месяц
+            updateMonthlyAffiliatePayments($pdo, $payment_month);
+        }
         
         // Если новый пользователь создан с total_paid_amount > 0, пересчитываем выплаты партнерам
         if ($total_paid_amount > 0) {
@@ -157,8 +196,27 @@ try {
     updateReferralCounts($pdo);
 
     $pdo->commit();
-    header('Location: index.php');
+    
+    // Успешное сохранение - перенаправляем с сообщением об успехе
+    $redirect_url = isset($id) && $id ? 'user.php?id=' . $id . '&success=1' : 'index.php?success=1';
+    
+    // Используем несколько методов перенаправления для надежности
+    header('Location: ' . $redirect_url);
+    
+    // Запасной вариант через HTML мета-тег
+    echo '<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="refresh" content="0;url=' . htmlspecialchars($redirect_url) . '">
+        <script>window.location.href = "' . htmlspecialchars($redirect_url) . '";</script>
+    </head>
+    <body>
+        <p>Данные сохранены. Если страница не перенаправилась автоматически, <a href="' . htmlspecialchars($redirect_url) . '">нажмите здесь</a>.</p>
+    </body>
+    </html>';
     exit;
+    
 } catch (Exception $e) {
     // Проверяем, есть ли активная транзакция перед откатом
     if ($pdo->inTransaction()) {
@@ -170,5 +228,17 @@ try {
         }
     }
     
-    die('Ошибка при сохранении пользователя: ' . htmlspecialchars($e->getMessage()));
+    // Логируем ошибку для отладки
+    error_log('Ошибка в save_user.php: ' . $e->getMessage());
+    
+    // Перенаправляем обратно на форму с сообщением об ошибке
+    $redirect_url = 'user_form.php';
+    if (isset($_POST['id']) && !empty($_POST['id'])) {
+        $redirect_url .= '?id=' . $_POST['id'];
+    }
+    $redirect_url .= (strpos($redirect_url, '?') !== false ? '&' : '?') . 
+                     'error=' . urlencode('Ошибка при сохранении: ' . $e->getMessage());
+    
+    header('Location: ' . $redirect_url);
+    exit;
 } 

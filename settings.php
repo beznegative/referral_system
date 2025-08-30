@@ -65,46 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
 
                     
-                case 'archive_month':
-                    // Архивировать месячные выплаты
-                    if (isset($_POST['archive_month'])) {
-                        $month = $_POST['archive_month'];
-                        
-                        // Получаем всех пользователей с месячными данными
-                        $stmt = $pdo->prepare("
-                            SELECT id, monthly_paid_amount, monthly_paid_for_referrals 
-                            FROM users 
-                            WHERE payment_month = ? AND (monthly_paid_amount > 0 OR monthly_paid_for_referrals > 0)
-                        ");
-                        $stmt->execute([$month]);
-                        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                        
-                        $archived_count = 0;
-                        foreach ($users as $user) {
-                            // Сохраняем в архив
-                            $stmt = $pdo->prepare("
-                                INSERT INTO monthly_payments (user_id, payment_month, paid_amount, paid_for_referrals) 
-                                VALUES (?, ?, ?, ?)
-                                ON DUPLICATE KEY UPDATE 
-                                paid_amount = VALUES(paid_amount),
-                                paid_for_referrals = VALUES(paid_for_referrals)
-                            ");
-                            $stmt->execute([$user['id'], $month, $user['monthly_paid_amount'], $user['monthly_paid_for_referrals']]);
-                            
-                            // Обнуляем месячные данные
-                            $stmt = $pdo->prepare("
-                                UPDATE users 
-                                SET monthly_paid_amount = 0.00, monthly_paid_for_referrals = 0.00, payment_month = ?
-                                WHERE id = ?
-                            ");
-                            $stmt->execute([date('Y-m'), $user['id']]);
-                            
-                            $archived_count++;
-                        }
-                        
-                        $success = "Архивированы данные за {$month} для {$archived_count} пользователей. Месячные счетчики обнулены.";
-                    }
-                    break;
+
             }
         }
         
@@ -322,43 +283,111 @@ require_once 'includes/header.php';
         
 
         
-        <!-- Месячные отчеты -->
+        <!-- Отчеты и аналитика -->
         <div class="settings-card">
-            <h3>Месячные отчеты</h3>
-            <p>Управление месячными выплатами и генерация отчетов.</p>
+            <h3>📊 Отчеты и аналитика</h3>
+            <p>Генерация подробных отчетов о выплатах, партнёрах и рефералах.</p>
             
-            <!-- Архивирование месяца -->
+            <!-- Месячный отчет -->
             <div class="form-section">
-                <h4>Архивирование месяца</h4>
-                <form method="POST" style="display: flex; gap: 10px; align-items: end; flex-wrap: wrap;">
-                    <input type="hidden" name="action" value="archive_month">
-                    <div class="form-group" style="margin: 0;">
-                        <label for="archive_month">Месяц для архивирования:</label>
-                        <input type="month" id="archive_month" name="archive_month" class="form-control" 
-                               value="<?= date('Y-m', strtotime('-1 month')) ?>" required style="width: auto;">
+                <h4>📅 Месячный отчет</h4>
+                <p class="form-description">Подробный отчет с выплатами всех пользователей и партнёров за выбранный месяц.</p>
+                <form method="GET" action="monthly_report_pdf.php" class="report-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="monthly_report_month">Выберите месяц:</label>
+                            <input type="month" id="monthly_report_month" name="month" class="form-control" 
+                                   value="<?= date('Y-m') ?>" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="monthly_report_format">Формат отчета:</label>
+                            <select id="monthly_report_format" name="format" class="form-control">
+                                <option value="pdf">PDF документ</option>
+                                <option value="excel">Excel таблица</option>
+                            </select>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-warning" 
-                            onclick="return confirm('Архивировать данные за выбранный месяц? Месячные счетчики будут обнулены.')">
-                        Архивировать месяц
+                    <div class="report-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="include_users" value="1" checked>
+                            Включить всех пользователей
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="include_affiliates" value="1" checked>
+                            Включить партнёров
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="include_referrals" value="1" checked>
+                            Включить выплаты за рефералов
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-report">
+                        <span>📄</span> Скачать месячный отчет
                     </button>
                 </form>
-                <small class="form-text text-muted">Сохраняет месячные выплаты в архив и обнуляет счетчики для нового месяца</small>
             </div>
             
-            <!-- Экспорт месячного отчета -->
-            <div class="form-section mt-3">
-                <h4>Экспорт месячного отчета в PDF</h4>
-                <form method="GET" action="monthly_report_pdf.php" style="display: flex; gap: 10px; align-items: end; flex-wrap: wrap;">
-                    <div class="form-group" style="margin: 0;">
-                        <label for="report_month">Месяц отчета:</label>
-                        <input type="month" id="report_month" name="month" class="form-control" 
-                               value="<?= date('Y-m') ?>" required style="width: auto;">
+            <!-- Отчет за все время -->
+            <div class="form-section">
+                <h4>🕐 Отчет за все время</h4>
+                <p class="form-description">Полный отчет с общей статистикой, выплатами по всем периодам и структурой рефералов.</p>
+                <form method="GET" action="monthly_report_pdf.php" class="report-form">
+                    <input type="hidden" name="type" value="all_time">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="alltime_format">Формат отчета:</label>
+                            <select id="alltime_format" name="format" class="form-control">
+                                <option value="pdf">PDF документ</option>
+                                <option value="excel">Excel таблица</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="sort_by">Сортировать по:</label>
+                            <select id="sort_by" name="sort_by" class="form-control">
+                                <option value="total_paid">Общей сумме выплат</option>
+                                <option value="referrals_earnings">Выплатам за рефералов</option>
+                                <option value="referrals_count">Количеству рефералов</option>
+                                <option value="name">Имени</option>
+                            </select>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-success">
-                        Скачать PDF отчет
+                    <div class="report-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="include_monthly_breakdown" value="1" checked>
+                            Разбивка по месяцам
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="include_referral_tree" value="1">
+                            Дерево рефералов
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="include_statistics" value="1" checked>
+                            Общая статистика
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-report">
+                        <span>📈</span> Скачать полный отчет
                     </button>
                 </form>
-                <small class="form-text text-muted">Генерирует PDF отчет с выплатами за выбранный месяц</small>
+            </div>
+            
+            <!-- Быстрые отчеты -->
+            <div class="form-section">
+                <h4>⚡ Быстрые отчеты</h4>
+                <div class="quick-reports">
+                    <a href="monthly_report_pdf.php?month=<?= date('Y-m') ?>&format=pdf&quick=current" class="btn btn-outline-primary">
+                        📅 Текущий месяц
+                    </a>
+                    <a href="monthly_report_pdf.php?month=<?= date('Y-m', strtotime('-1 month')) ?>&format=pdf&quick=previous" class="btn btn-outline-primary">
+                        📅 Прошлый месяц
+                    </a>
+                    <a href="monthly_report_pdf.php?type=all_time&format=pdf&quick=summary" class="btn btn-outline-success">
+                        📊 Краткая сводка
+                    </a>
+                    <a href="monthly_report_pdf.php?type=top_performers&format=pdf" class="btn btn-outline-warning">
+                        🏆 Топ партнёры
+                    </a>
+                </div>
             </div>
         </div>
         
@@ -380,5 +409,141 @@ require_once 'includes/header.php';
         </div>
     </div>
 </div>
+
+<style>
+/* Стили для улучшенного интерфейса отчетов */
+.form-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: var(--background-color);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+}
+
+.form-section h4 {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.form-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.report-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.report-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--card-background);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    margin: 0;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--border-color);
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"]:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-report {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+}
+
+.btn-report span {
+    font-size: 1.1rem;
+}
+
+.quick-reports {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+.quick-reports .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+/* Адаптивность для отчетов */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .report-options {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .quick-reports {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .form-section {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .checkbox-label {
+        font-size: 0.85rem;
+    }
+    
+    .btn-report {
+        padding: 0.625rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .quick-reports .btn {
+        padding: 0.625rem;
+        font-size: 0.85rem;
+    }
+}
+</style>
 
 <?php require_once 'includes/footer.php'; ?> 

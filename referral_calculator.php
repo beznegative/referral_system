@@ -383,6 +383,92 @@ function updateAffiliateEarning($pdo, $affiliateId, $earning, $referralId, $leve
 }
 
 /**
+ * Обновление месячных выплат за рефералов для всех партнёров за конкретный месяц
+ * Пересчитывает все месячные выплаты за рефералов для указанного месяца
+ */
+function updateMonthlyAffiliatePayments($pdo, $paymentMonth) {
+    try {
+        $settings = getReferralSettings($pdo);
+        
+        // Сбрасываем все месячные выплаты за рефералов для этого месяца
+        $stmt = $pdo->prepare("
+            UPDATE monthly_payments 
+            SET paid_for_referrals = 0.00 
+            WHERE payment_month = ?
+        ");
+        $stmt->execute([$paymentMonth]);
+        
+        // Также обновляем monthly_paid_for_referrals в users для тех, у кого payment_month совпадает
+        $stmt = $pdo->prepare("
+            UPDATE users 
+            SET monthly_paid_for_referrals = 0.00 
+            WHERE payment_month = ?
+        ");
+        $stmt->execute([$paymentMonth]);
+        
+        // Получаем всех пользователей с выплатами за этот месяц
+        $stmt = $pdo->prepare("
+            SELECT mp.user_id, mp.paid_amount, u.affiliate_id
+            FROM monthly_payments mp
+            JOIN users u ON mp.user_id = u.id
+            WHERE mp.payment_month = ? AND mp.paid_amount > 0 AND u.affiliate_id IS NOT NULL
+        ");
+        $stmt->execute([$paymentMonth]);
+        $usersWithPayments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Для каждого пользователя с выплатами рассчитываем выплаты его партнёрам
+        foreach ($usersWithPayments as $userPayment) {
+            $userId = $userPayment['user_id'];
+            $paidAmount = $userPayment['paid_amount'];
+            $currentAffiliateId = $userPayment['affiliate_id'];
+            $level = 1;
+            
+            // Проходим по цепочке партнёров (до 3 уровней)
+            while ($currentAffiliateId && $level <= 3) {
+                $stmt = $pdo->prepare("SELECT id, affiliate_id FROM users WHERE id = ?");
+                $stmt->execute([$currentAffiliateId]);
+                $affiliate = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($affiliate) {
+                    $percentKey = 'level_' . $level . '_percent';
+                    $percent = isset($settings[$percentKey]) ? $settings[$percentKey] : 0;
+                    
+                    // Рассчитываем выплату для этого партнёра
+                    $earning = $paidAmount * ($percent / 100);
+                    
+                    if ($earning > 0) {
+                        // Добавляем выплату к месячным выплатам партнёра
+                        $stmt = $pdo->prepare("
+                            INSERT INTO monthly_payments (user_id, payment_month, paid_amount, paid_for_referrals) 
+                            VALUES (?, ?, 0.00, ?)
+                            ON DUPLICATE KEY UPDATE 
+                            paid_for_referrals = paid_for_referrals + VALUES(paid_for_referrals)
+                        ");
+                        $stmt->execute([$affiliate['id'], $paymentMonth, $earning]);
+                        
+                        // Если это текущий месяц партнёра, обновляем и monthly_paid_for_referrals в users
+                        $stmt = $pdo->prepare("
+                            UPDATE users 
+                            SET monthly_paid_for_referrals = monthly_paid_for_referrals + ?
+                            WHERE id = ? AND payment_month = ?
+                        ");
+                        $stmt->execute([$earning, $affiliate['id'], $paymentMonth]);
+                    }
+                    
+                    $currentAffiliateId = $affiliate['affiliate_id'];
+                    $level++;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+    } catch (Exception $e) {
+        throw $e;
+    }
+}
+
+/**
  * Пересчет всех выплат в системе
  */
 function recalculateAllReferralPayments($pdo) {

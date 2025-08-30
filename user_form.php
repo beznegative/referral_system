@@ -42,8 +42,14 @@ if ($isEdit) {
 $stmt = $pdo->query("SELECT * FROM bookmakers ORDER BY name");
 $bookmakers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Получаем список партнёров для выбора
-$stmt = $pdo->query("SELECT id, full_name FROM users WHERE is_affiliate = 1 ORDER BY full_name");
+// Получаем список всех пользователей для выбора как пригласивших
+// Исключаем текущего пользователя, чтобы избежать циклических ссылок
+if ($isEdit) {
+    $stmt = $pdo->prepare("SELECT id, full_name FROM users WHERE id != ? ORDER BY full_name");
+    $stmt->execute([$_GET['id']]);
+} else {
+    $stmt = $pdo->query("SELECT id, full_name FROM users ORDER BY full_name");
+}
 $affiliates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 require_once 'includes/header.php';
@@ -53,7 +59,7 @@ require_once 'includes/header.php';
     <h1><?= $pageTitle ?></h1>
     
     <div class="form-container">
-        <form method="POST" action="save_user.php" class="user-form">
+        <form method="POST" action="save_user.php" class="user-form" enctype="multipart/form-data">
             <?php if ($isEdit): ?>
                 <input type="hidden" name="id" value="<?= $user['id'] ?>">
             <?php endif; ?>
@@ -96,9 +102,9 @@ require_once 'includes/header.php';
                 </div>
                 
                 <div class="form-group">
-                    <label for="affiliate_id">Пригласивший партнёр</label>
+                    <label for="affiliate_id">Пригласивший пользователь</label>
                     <select id="affiliate_id" name="affiliate_id" class="form-control">
-                        <option value="">Выберите партнёра</option>
+                        <option value="">Выберите пользователя</option>
                         <?php foreach ($affiliates as $affiliate): ?>
                             <option value="<?= $affiliate['id'] ?>" 
                                     <?= $isEdit && $user['affiliate_id'] == $affiliate['id'] ? 'selected' : '' ?>>
@@ -113,10 +119,47 @@ require_once 'includes/header.php';
             <div class="form-section">
                 <h3>Финансовая информация</h3>
                 
-                <div class="form-group">
-                    <label for="payment_month">Месяц выплат</label>
-                    <input type="month" id="payment_month" name="payment_month" class="form-control" 
-                           value="<?= $isEdit ? $user['payment_month'] : date('Y-m') ?>">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="payment_year">Год выплат</label>
+                        <select id="payment_year" name="payment_year" class="form-control">
+                            <?php 
+                            $currentYear = date('Y');
+                            $selectedYear = $isEdit && $user['payment_month'] ? date('Y', strtotime($user['payment_month'] . '-01')) : $currentYear;
+                            for ($year = $currentYear - 2; $year <= $currentYear + 1; $year++): ?>
+                                <option value="<?= $year ?>" <?= $year == $selectedYear ? 'selected' : '' ?>>
+                                    <?= $year ?>
+                                </option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="payment_month">Месяц выплат</label>
+                        <select id="payment_month" name="payment_month" class="form-control">
+                            <?php 
+                            $months = [
+                                '01' => 'Январь',
+                                '02' => 'Февраль', 
+                                '03' => 'Март',
+                                '04' => 'Апрель',
+                                '05' => 'Май',
+                                '06' => 'Июнь',
+                                '07' => 'Июль',
+                                '08' => 'Август',
+                                '09' => 'Сентябрь',
+                                '10' => 'Октябрь',
+                                '11' => 'Ноябрь',
+                                '12' => 'Декабрь'
+                            ];
+                            $selectedMonth = $isEdit && $user['payment_month'] ? date('m', strtotime($user['payment_month'] . '-01')) : date('m');
+                            foreach ($months as $value => $name): ?>
+                                <option value="<?= $value ?>" <?= $value == $selectedMonth ? 'selected' : '' ?>>
+                                    <?= $name ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="form-row">
@@ -138,20 +181,18 @@ require_once 'includes/header.php';
                 <div class="form-row">
                     <div class="form-group">
                         <label for="total_paid_amount">Всего выплачено (₽)</label>
-                        <input type="number" step="0.01" min="0" id="total_paid_amount" 
-                               name="total_paid_amount" class="form-control" 
-                               value="<?= $isEdit ? $user['total_paid_amount'] : '' ?>"
-                               placeholder="Оставьте пустым для автоматического расчёта">
-                        <small class="form-text text-muted">Будет рассчитано автоматически, если оставить пустым</small>
+                        <input type="text" id="total_paid_amount" class="form-control readonly-field" 
+                               value="<?= $isEdit ? number_format($user['total_paid_amount'], 2, '.', ' ') : '0.00' ?>"
+                               readonly>
+                        <small class="form-text text-muted">Рассчитывается автоматически на основе всех выплат</small>
                     </div>
                     
                     <div class="form-group">
                         <label for="total_paid_for_referrals">Всего выплачено за рефералов (₽)</label>
-                        <input type="number" step="0.01" min="0" id="total_paid_for_referrals" 
-                               name="total_paid_for_referrals" class="form-control" 
-                               value="<?= $isEdit ? $user['total_paid_for_referrals'] : '' ?>"
-                               placeholder="Оставьте пустым для автоматического расчёта">
-                        <small class="form-text text-muted">Будет рассчитано автоматически, если оставить пустым</small>
+                        <input type="text" id="total_paid_for_referrals" class="form-control readonly-field" 
+                               value="<?= $isEdit ? number_format($user['total_paid_for_referrals'], 2, '.', ' ') : '0.00' ?>"
+                               readonly>
+                        <small class="form-text text-muted">Рассчитывается автоматически на основе всех выплат за рефералов</small>
                     </div>
                 </div>
             </div>
@@ -324,6 +365,18 @@ label {
     color: var(--text-secondary) !important;
 }
 
+.readonly-field {
+    background-color: var(--background-color) !important;
+    color: var(--text-secondary) !important;
+    cursor: not-allowed !important;
+    font-weight: 500;
+}
+
+.readonly-field:focus {
+    box-shadow: none !important;
+    border-color: var(--border-color) !important;
+}
+
 /* Адаптивность */
 @media (max-width: 768px) {
     .form-container {
@@ -378,7 +431,93 @@ label {
 </style>
 
 <script>
+// Функция для загрузки данных месяца/года
+function loadMonthlyData() {
+    const userId = <?= $isEdit ? $user['id'] : 'null' ?>;
+    if (!userId) return;
+    
+    const year = document.getElementById('payment_year').value;
+    const month = document.getElementById('payment_month').value;
+    const paymentMonth = year + '-' + month;
+    
+    // Показываем индикатор загрузки
+    const monthlyAmountField = document.getElementById('monthly_paid_amount');
+    const monthlyReferralsField = document.getElementById('monthly_paid_for_referrals');
+    const totalAmountField = document.getElementById('total_paid_amount');
+    const totalReferralsField = document.getElementById('total_paid_for_referrals');
+    
+    monthlyAmountField.disabled = true;
+    monthlyReferralsField.disabled = true;
+    
+    // AJAX запрос для получения данных
+    fetch('get_monthly_data.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'user_id=' + userId + '&payment_month=' + encodeURIComponent(paymentMonth)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            monthlyAmountField.value = data.monthly_paid_amount || '0.00';
+            monthlyReferralsField.value = data.monthly_paid_for_referrals || '0.00';
+            totalAmountField.value = data.total_paid_amount || '0.00';
+            totalReferralsField.value = data.total_paid_for_referrals || '0.00';
+        } else {
+            console.error('Ошибка загрузки данных:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка запроса:', error);
+    })
+    .finally(() => {
+        monthlyAmountField.disabled = false;
+        monthlyReferralsField.disabled = false;
+    });
+}
 
+// Валидация формы перед отправкой
+document.querySelector('.user-form').addEventListener('submit', function(e) {
+    const fullName = document.getElementById('full_name').value.trim();
+    const telegramUsername = document.getElementById('telegram_username').value.trim();
+    
+    if (!fullName) {
+        alert('Пожалуйста, заполните поле "ФИО"');
+        e.preventDefault();
+        return false;
+    }
+    
+    if (!telegramUsername) {
+        alert('Пожалуйста, заполните поле "Имя пользователя Telegram"');
+        e.preventDefault();
+        return false;
+    }
+    
+    // Объединяем год и месяц в payment_month поле перед отправкой
+    const year = document.getElementById('payment_year').value;
+    const month = document.getElementById('payment_month').value;
+    const hiddenPaymentMonth = document.createElement('input');
+    hiddenPaymentMonth.type = 'hidden';
+    hiddenPaymentMonth.name = 'payment_month_combined';
+    hiddenPaymentMonth.value = year + '-' + month;
+    this.appendChild(hiddenPaymentMonth);
+    
+    // Отладочная информация
+    console.log('Отправка формы:', {
+        fullName: fullName,
+        telegramUsername: telegramUsername,
+        paymentMonth: year + '-' + month,
+        method: this.method,
+        action: this.action
+    });
+    
+    return true;
+});
+
+// Обработчики событий для изменения года и месяца
+document.getElementById('payment_year').addEventListener('change', loadMonthlyData);
+document.getElementById('payment_month').addEventListener('change', loadMonthlyData);
 
 // Обработка поля Telegram username
 document.getElementById('telegram_username').addEventListener('input', function(e) {

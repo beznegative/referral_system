@@ -3,8 +3,8 @@ require_once 'includes/database.php';
 require_once 'referral_calculator.php';
 require_once 'check_captcha.php';
 
-// Временно отключаем проверку капчи для тестирования
-// TODO: Включить обратно после тестирования
+// Проверка капчи отключена, поскольку она уже проверяется на уровне страницы
+// Это избегает проблем с сессиями и AJAX запросами
 /*
 $captchaStatus = checkCaptchaStatus();
 if (!$captchaStatus['verified']) {
@@ -25,32 +25,11 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Ключ шифрования (должен быть таким же, как в других файлах)
-define('ENCRYPTION_KEY', 'your-secret-key-123');
-
 // Функция для отправки JSON ответа
 function sendResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
-}
-
-// Функция для шифрования данных
-function encryptData($data) {
-    if (empty($data)) {
-        return '';
-    }
-    
-    $method = "AES-256-CBC";
-    $key = substr(hash('sha256', ENCRYPTION_KEY, true), 0, 32);
-    $iv = openssl_random_pseudo_bytes(16);
-    $encrypted = openssl_encrypt($data, $method, $key, OPENSSL_RAW_DATA, $iv);
-    
-    if ($encrypted === false) {
-        return '';
-    }
-    
-    return base64_encode($iv . $encrypted);
 }
 
 // Функция для валидации данных
@@ -64,43 +43,11 @@ function validateRegistrationData($data) {
         $errors[] = 'ФИО должно содержать минимум 2 символа';
     }
     
-    // Проверка банковской карты (необязательное поле)
-    if (!empty($data['bank_card'])) {
-        $cardNumber = preg_replace('/\s+/', '', $data['bank_card']);
-        $cardDigits = preg_replace('/[^0-9]/', '', $cardNumber);
-        if (strlen($cardDigits) < 13 || strlen($cardDigits) > 19) {
-            $errors[] = 'Номер банковской карты должен содержать от 13 до 19 цифр';
-        }
-    }
-    
-    // Проверка Telegram username (смягченная проверка)
+    // Проверка Telegram username
     if (empty($data['telegram_username'])) {
         $errors[] = 'Имя пользователя Telegram обязательно';
     } elseif (strlen(str_replace('@', '', $data['telegram_username'])) < 2) {
         $errors[] = 'Имя пользователя Telegram должно содержать минимум 2 символа';
-    }
-    
-    // Проверка номера телефона (смягченная проверка)
-    if (empty($data['phone_number'])) {
-        $errors[] = 'Номер телефона обязателен';
-    } elseif (strlen(preg_replace('/[^0-9]/', '', $data['phone_number'])) < 10) {
-        $errors[] = 'Номер телефона должен содержать минимум 10 цифр';
-    }
-    
-    // Проверка даты рождения (смягченная проверка)
-    if (empty($data['birth_date'])) {
-        $errors[] = 'Дата рождения обязательна';
-    } else {
-        $birthDate = DateTime::createFromFormat('Y-m-d', $data['birth_date']);
-        if (!$birthDate) {
-            $errors[] = 'Некорректная дата рождения';
-        } else {
-            $today = new DateTime();
-            $age = $today->diff($birthDate)->y;
-            if ($age > 120) {
-                $errors[] = 'Некорректная дата рождения';
-            }
-        }
     }
     
     // Проверка telegram_id
@@ -122,10 +69,7 @@ try {
     // Получаем данные из формы
     $data = [
         'full_name' => trim($_POST['full_name'] ?? ''),
-        'bank_card' => trim($_POST['bank_card'] ?? ''),
         'telegram_username' => trim($_POST['telegram_username'] ?? ''),
-        'phone_number' => trim($_POST['phone_number'] ?? ''),
-        'birth_date' => trim($_POST['birth_date'] ?? ''),
         'telegram_id' => trim($_POST['telegram_id'] ?? ''),
         'affiliate_id' => !empty($_POST['affiliate_id']) ? intval($_POST['affiliate_id']) : null
     ];
@@ -147,14 +91,6 @@ try {
         sendResponse(['success' => false, 'message' => 'Пользователь с таким Telegram ID уже существует'], 409);
     }
     
-    // Проверяем, не существует ли уже пользователь с таким номером телефона
-    $stmt = $pdo->prepare("SELECT id FROM users WHERE phone_number = ?");
-    $stmt->execute([$data['phone_number']]);
-    if ($stmt->fetch()) {
-        $pdo->rollBack();
-        sendResponse(['success' => false, 'message' => 'Пользователь с таким номером телефона уже существует'], 409);
-    }
-    
     // Если указан affiliate_id, проверяем, что пользователь существует (может быть любой пользователь)
     if ($data['affiliate_id']) {
         $stmt = $pdo->prepare("SELECT id, full_name FROM users WHERE id = ?");
@@ -172,32 +108,21 @@ try {
         }
     }
     
-    // Шифруем банковскую карту (если она заполнена)
-    $encryptedBankCard = '';
-    if (!empty($data['bank_card'])) {
-        $encryptedBankCard = encryptData($data['bank_card']);
-        if (empty($encryptedBankCard)) {
-            $pdo->rollBack();
-            sendResponse(['success' => false, 'message' => 'Ошибка шифрования данных'], 500);
-        }
-    }
+
     
     // Создаем нового пользователя
     $stmt = $pdo->prepare("
         INSERT INTO users (
-            full_name, bank_card, telegram_username, telegram_id, 
-            phone_number, birth_date, is_affiliate, affiliate_id,
-            total_paid_amount, total_paid_for_referrals, referral_count
-        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0.00, 0.00, 0)
+            full_name, telegram_username, telegram_id, 
+            is_affiliate, affiliate_id,
+            total_paid_amount, total_paid_for_referrals
+        ) VALUES (?, ?, ?, 0, ?, 0.00, 0.00)
     ");
     
     $stmt->execute([
         $data['full_name'],
-        $encryptedBankCard ?: null, // Если пустая строка, то NULL
         $data['telegram_username'],
         $data['telegram_id'],
-        $data['phone_number'],
-        $data['birth_date'],
         $data['affiliate_id']
     ]);
     
@@ -275,7 +200,7 @@ try {
     }
     
     error_log('Ошибка БД в register_api.php: ' . $e->getMessage());
-    sendResponse(['success' => false, 'message' => 'Ошибка сервера'], 500);
+    sendResponse(['success' => false, 'message' => 'Ошибка базы данных: ' . $e->getMessage()], 500);
     
 } catch (Exception $e) {
     // Откатываем транзакцию при любой другой ошибке
@@ -284,6 +209,6 @@ try {
     }
     
     error_log('Ошибка в register_api.php: ' . $e->getMessage());
-    sendResponse(['success' => false, 'message' => 'Неизвестная ошибка'], 500);
+    sendResponse(['success' => false, 'message' => 'Ошибка: ' . $e->getMessage()], 500);
 }
 ?> 

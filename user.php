@@ -70,9 +70,7 @@ require_once 'includes/header.php';
         <div class="user-details">
             <p><strong>Telegram:</strong> <?php echo htmlspecialchars($user['telegram_username']); ?></p>
             <p><strong>ID Telegram:</strong> <?php echo htmlspecialchars($user['telegram_id']); ?></p>
-            <p><strong>Телефон:</strong> <?php echo htmlspecialchars($user['phone_number']); ?></p>
-            <p><strong>Дата рождения:</strong> <?php echo date('d.m.Y', strtotime($user['birth_date'])); ?></p>
-            <p><strong>Банковская карта:</strong> <?php echo htmlspecialchars(decryptData($user['bank_card'])); ?></p>
+
             
             <!-- Новые поля для реферальной системы -->
             <div class="referral-info mt-3">

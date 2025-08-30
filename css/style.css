@@ -1040,6 +1040,15 @@ select:focus {
     position: relative;
     overflow: hidden;
     background-color: var(--card-background);
+    
+    /* Улучшение для сенсорных устройств */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .theme-toggle:hover {
@@ -1075,6 +1084,19 @@ select:focus {
 [data-theme="dark"] .theme-toggle .icon-moon {
     opacity: 1;
     transform: translate(-50%, -50%) rotate(0deg);
+}
+
+/* Стили для theme-toggle в темной теме на мобильных */
+@media (max-width: 768px) {
+    [data-theme="dark"] .theme-toggle {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        border-color: var(--border-color);
+    }
+    
+    [data-theme="dark"] .theme-toggle:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 2px 12px rgba(59, 130, 246, 0.3);
+    }
 }
 
 /* Темная тема */
@@ -1461,18 +1483,32 @@ select:focus {
 
 /* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
+    .nav-container {
+        position: relative;
+    }
+    
     .theme-switcher {
-        margin-left: 0.5rem;
+        position: absolute;
+        top: 0.5rem;
+        left: 1rem;
+        margin: 0;
+        z-index: 101;
     }
     
     .theme-toggle {
         width: 2rem;
         height: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     
     .theme-toggle svg {
         width: 16px;
         height: 16px;
+    }
+    
+    /* Добавляем отступ слева для логотипа, чтобы не перекрывался */
+    .logo {
+        margin-left: 3.5rem;
     }
 }
 
@@ -1926,6 +1962,27 @@ h1 {
     .settings-card {
         padding: 0.75rem;
         margin: 0 -0.5rem;
+    }
+    
+    /* Улучшенное позиционирование theme-toggle для очень маленьких экранов */
+    .theme-switcher {
+        top: 0.25rem;
+        left: 0.5rem;
+    }
+    
+    .theme-toggle {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+    
+    .theme-toggle svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .logo {
+        margin-left: 3rem;
+        font-size: 1.25rem;
     }
     
     .stats-grid {

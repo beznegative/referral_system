@@ -2,7 +2,6 @@
 // Подключение к базе данных
 require_once 'includes/database.php';
 require_once 'referral_calculator.php';
-require_once 'telegram_api.php';
 
 // Заголовок страницы
 $pageTitle = 'Настройки системы';
@@ -64,79 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $success = "Все выплаты пересчитаны!";
                     break;
                     
-                case 'send_telegram_message':
-                    // Отправка сообщения в Telegram
-                    $telegram = new TelegramAPI($pdo);
-                    $message = trim($_POST['message'] ?? '');
-                    
-                    if (empty($message)) {
-                        $error = "Сообщение не может быть пустым!";
-                        break;
-                    }
-                    
-                    $result = $telegram->sendMessageToAll($message);
-                    
-                    if ($result['ok']) {
-                        $success = "Сообщение отправлено партнерам! Успешно: {$result['success_count']}, Ошибок: {$result['error_count']}";
-                        
-                        // Если есть ошибки, показываем их
-                        if ($result['error_count'] > 0) {
-                            $errorDetails = [];
-                            foreach ($result['results'] as $res) {
-                                if (!$res['success']) {
-                                    $errorDetails[] = "{$res['user']} (ID: {$res['telegram_id']}): {$res['error']}";
-                                }
-                            }
-                            $success .= "<br><br><strong>Детали ошибок:</strong><br>" . implode("<br>", $errorDetails);
-                        }
-                    } else {
-                        $error = "Ошибка отправки сообщения: " . $result['error'];
-                    }
-                    break;
-                    
-                case 'send_telegram_photo':
-                    // Отправка фото в Telegram
-                    $telegram = new TelegramAPI($pdo);
-                    $caption = trim($_POST['caption'] ?? '');
-                    
-                    if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
-                        $error = "Ошибка загрузки фото!";
-                        break;
-                    }
-                    
-                    $photo = $_FILES['photo']['tmp_name'];
-                    $result = $telegram->sendPhotoToAll($photo, $caption);
-                    
-                    if ($result['ok']) {
-                        $success = "Фото отправлено партнерам! Успешно: {$result['success_count']}, Ошибок: {$result['error_count']}";
-                        
-                        // Если есть ошибки, показываем их
-                        if ($result['error_count'] > 0) {
-                            $errorDetails = [];
-                            foreach ($result['results'] as $res) {
-                                if (!$res['success']) {
-                                    $errorDetails[] = "{$res['user']} (ID: {$res['telegram_id']}): {$res['error']}";
-                                }
-                            }
-                            $success .= "<br><br><strong>Детали ошибок:</strong><br>" . implode("<br>", $errorDetails);
-                        }
-                    } else {
-                        $error = "Ошибка отправки фото: " . $result['error'];
-                    }
-                    break;
-                    
-                case 'test_telegram_bot':
-                    // Тест подключения к Telegram боту
-                    $telegram = new TelegramAPI($pdo);
-                    $result = $telegram->getMe();
-                    
-                    if ($result['ok']) {
-                        $botInfo = $result['result'];
-                        $success = "Бот подключен! Имя: {$botInfo['first_name']}, Username: @{$botInfo['username']}";
-                    } else {
-                        $error = "Ошибка подключения к боту: " . $result['error'];
-                    }
-                    break;
+
                     
                 case 'archive_month':
                     // Архивировать месячные выплаты
@@ -393,60 +320,7 @@ require_once 'includes/header.php';
             </div>
         </div>
         
-        <!-- Telegram бот -->
-        <div class="settings-card">
-            <h3>Telegram бот</h3>
-            <p>Отправка сообщений всем партнерам через Telegram бота.</p>
-            
-            <!-- Тест подключения к боту -->
-            <div class="action-buttons mb-3">
-                <form method="POST" style="display: inline;">
-                    <input type="hidden" name="action" value="test_telegram_bot">
-                    <button type="submit" class="btn btn-info">
-                        Тест подключения к боту
-                    </button>
-                </form>
-                <a href="check_telegram_setup.php" class="btn btn-warning" style="margin-left: 10px;">
-                    Диагностика Telegram бота
-                </a>
-            </div>
-            
-            <!-- Отправка текстового сообщения -->
-            <div class="telegram-form-section">
-                <h4>Отправить сообщение</h4>
-                <form method="POST" class="telegram-message-form">
-                    <input type="hidden" name="action" value="send_telegram_message">
-                    <div class="form-group">
-                        <label for="message">Текст сообщения:</label>
-                        <textarea id="message" name="message" rows="4" class="form-control" 
-                                  placeholder="Введите сообщение для отправки всем партнерам..." required></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary" onclick="return confirm('Отправить сообщение всем партнерам?')">
-                        Отправить сообщение
-                    </button>
-                </form>
-            </div>
-            
-            <!-- Отправка фото с подписью -->
-            <div class="telegram-form-section">
-                <h4>Отправить фото</h4>
-                <form method="POST" enctype="multipart/form-data" class="telegram-photo-form">
-                    <input type="hidden" name="action" value="send_telegram_photo">
-                    <div class="form-group">
-                        <label for="photo">Выберите фото:</label>
-                        <input type="file" id="photo" name="photo" accept="image/*" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="caption">Подпись к фото (необязательно):</label>
-                        <textarea id="caption" name="caption" rows="3" class="form-control" 
-                                  placeholder="Введите подпись к фото..."></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-success" onclick="return confirm('Отправить фото всем партнерам?')">
-                        Отправить фото
-                    </button>
-                </form>
-            </div>
-        </div>
+
         
         <!-- Месячные отчеты -->
         <div class="settings-card">

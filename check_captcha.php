@@ -6,9 +6,12 @@
 require_once 'captcha_config.php';
 
 function checkCaptchaStatus() {
-    // Начинаем сессию если она еще не начата
+    // Проверяем, что сессия уже начата (должна быть начата до вызова этой функции)
     if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+        return [
+            'verified' => false,
+            'reason' => 'Сессия не инициализирована'
+        ];
     }
     
     // Проверяем, была ли пройдена капча
@@ -73,9 +76,21 @@ function redirectToCaptcha($target = 'miniapp') {
         exit;
     }
     
-    // Обычное перенаправление
-    header('Location: ' . $captchaUrl);
-    exit;
+    // Проверяем, отправлены ли уже заголовки
+    if (!headers_sent()) {
+        // Обычное перенаправление через header
+        header('Location: ' . $captchaUrl);
+        exit;
+    } else {
+        // Если заголовки уже отправлены, используем JavaScript редирект
+        echo '<script type="text/javascript">';
+        echo 'window.location.href = "' . $captchaUrl . '";';
+        echo '</script>';
+        echo '<noscript>';
+        echo '<meta http-equiv="refresh" content="0;url=' . $captchaUrl . '">';
+        echo '</noscript>';
+        exit;
+    }
 }
 
 function requireCaptcha($target = 'miniapp') {
@@ -85,13 +100,15 @@ function requireCaptcha($target = 'miniapp') {
         redirectToCaptcha($target);
     }
     
+    // Капча пройдена для любой цели - считаем валидной
+    // Это позволяет использовать одну капчу для всех страниц
     return $status;
 }
 
 // Функция для очистки просроченных сессий капчи
 function cleanupExpiredCaptcha() {
     if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+        return false; // Сессия должна быть уже начата
     }
     
     $currentTime = time();

@@ -2,27 +2,6 @@
 require_once 'includes/database.php';
 require_once 'referral_calculator.php';
 
-// Ключ шифрования (должен быть таким же, как в user_form.php)
-define('ENCRYPTION_KEY', 'your-secret-key-123');
-
-// Функция для шифрования данных
-function encryptData($data) {
-    if (empty($data)) {
-        return '';
-    }
-    
-    $method = "AES-256-CBC";
-    $key = substr(hash('sha256', ENCRYPTION_KEY, true), 0, 32);
-    $iv = openssl_random_pseudo_bytes(16);
-    $encrypted = openssl_encrypt($data, $method, $key, OPENSSL_RAW_DATA, $iv);
-    
-    if ($encrypted === false) {
-        return '';
-    }
-    
-    return base64_encode($iv . $encrypted);
-}
-
 try {
     $pdo->beginTransaction();
 
@@ -70,11 +49,7 @@ try {
         $total_paid_for_referrals = $input_total_paid_for_referrals ?? $monthly_paid_for_referrals;
     }
 
-    // Шифруем банковскую карту (если она заполнена)
-    $encrypted_bank_card = '';
-    if (!empty($_POST['bank_card'])) {
-        $encrypted_bank_card = encryptData($_POST['bank_card']);
-    }
+
 
     if ($id) {
         // Получаем старые значения для сравнения
@@ -100,11 +75,8 @@ try {
         $stmt = $pdo->prepare("
             UPDATE users 
             SET full_name = ?, 
-                bank_card = ?, 
                 telegram_username = ?, 
                 telegram_id = ?, 
-                phone_number = ?, 
-                birth_date = ?,
                 is_affiliate = ?,
                 affiliate_id = ?,
                 total_paid_amount = ?,
@@ -117,11 +89,8 @@ try {
         
         $stmt->execute([
             $_POST['full_name'],
-            $encrypted_bank_card ?: null, // Если пустая строка, то NULL
             $_POST['telegram_username'],
             $telegram_id,
-            $_POST['phone_number'],
-            $_POST['birth_date'],
             $is_affiliate,
             $affiliate_id,
             $total_paid_amount,
@@ -140,20 +109,17 @@ try {
         // Создание нового пользователя
         $stmt = $pdo->prepare("
             INSERT INTO users (
-                full_name, bank_card, telegram_username, telegram_id, 
-                phone_number, birth_date, is_affiliate, affiliate_id,
+                full_name, telegram_username, telegram_id, 
+                is_affiliate, affiliate_id,
                 total_paid_amount, total_paid_for_referrals,
                 monthly_paid_amount, monthly_paid_for_referrals, payment_month
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
         $stmt->execute([
             $_POST['full_name'],
-            $encrypted_bank_card ?: null, // Если пустая строка, то NULL
             $_POST['telegram_username'],
             $telegram_id,
-            $_POST['phone_number'],
-            $_POST['birth_date'],
             $is_affiliate,
             $affiliate_id,
             $total_paid_amount,

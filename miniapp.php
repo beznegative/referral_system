@@ -1,5 +1,9 @@
 <?php
-// Проверяем капчу перед показом страницы
+// Начинаем сессию и проверяем капчу перед любым выводом
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once 'check_captcha.php';
 requireCaptcha('miniapp');
 ?>
@@ -302,26 +306,9 @@ requireCaptcha('miniapp');
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="bank_card">Номер банковской карты</label>
-                        <input type="text" class="form-control" id="bank_card" name="bank_card" 
-                               placeholder="2200 1234 5678 9012" maxlength="19">
-                    </div>
-
-                    <div class="form-group">
                         <label class="form-label" for="telegram_username">Имя пользователя Telegram <span class="required">*</span></label>
                         <input type="text" class="form-control" id="telegram_username" name="telegram_username" 
                                placeholder="@username" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="phone_number">Номер телефона <span class="required">*</span></label>
-                        <input type="tel" class="form-control" id="phone_number" name="phone_number" 
-                               placeholder="+79001234567" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="birth_date">Дата рождения <span class="required">*</span></label>
-                        <input type="date" class="form-control" id="birth_date" name="birth_date" required>
                     </div>
 
                     <div class="form-group">
@@ -589,25 +576,7 @@ requireCaptcha('miniapp');
             }
         });
 
-        // Форматирование номера карты
-        document.getElementById('bank_card').addEventListener('input', function() {
-            let value = this.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-            let formattedValue = '';
-            
-            for (let i = 0; i < value.length; i++) {
-                if (i > 0 && i % 4 === 0) {
-                    formattedValue += ' ';
-                }
-                formattedValue += value[i];
-            }
-            
-            this.value = formattedValue;
-        });
 
-        // Форматирование телефона
-        document.getElementById('phone_number').addEventListener('input', function() {
-            this.value = this.value.replace(/[^0-9]/g, '');
-        });
 
         // Обработчик поиска пригласителя
         document.getElementById('inviter_search').addEventListener('input', function() {
